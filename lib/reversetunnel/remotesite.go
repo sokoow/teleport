@@ -127,14 +127,14 @@ func (s *remoteSite) setLastActive(t time.Time) {
 
 func (s *remoteSite) handleHeartbeat(conn *remoteConn, ch ssh.Channel, reqC <-chan *ssh.Request) {
 	defer func() {
-		s.log.Infof("[TUNNEL] site connection closed: %v", s.domainName)
+		s.log.Infof("[TUNNEL] cluster connection closed: %v", s.domainName)
 		conn.Close()
 	}()
 	for {
 		select {
 		case req := <-reqC:
 			if req == nil {
-				s.log.Infof("[TUNNEL] site disconnected: %v", s.domainName)
+				s.log.Infof("[TUNNEL] cluster disconnected: %v", s.domainName)
 				conn.markInvalid(trace.ConnectionProblem(nil, "agent disconnected"))
 				return
 			}
