@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
@@ -44,6 +45,7 @@ import (
 // (also known as 'reverse tunnel agents'.
 type server struct {
 	sync.RWMutex
+	Config
 
 	// localAuth points to the cluster's auth server API
 	localAuth       auth.AccessPoint
@@ -61,66 +63,96 @@ type server struct {
 	// usually each of them is a local proxy.
 	localSites []*localSite
 
+	// peeredClusters is the list of sites available only via peer connection
+	peerCluster []*peeredCluster
+
 	// newAccessPoint returns new caching access point
 	newAccessPoint state.NewCachingAccessPoint
 }
 
-// ServerOption sets reverse tunnel server options
-type ServerOption func(s *server) error
+// DirectCluster is used to access cluster directly
+type DirectCluster struct {
+	// Name is a cluster name
+	Name string
+	// Client is a client to the cluster
+	Client auth.ClientI
+}
 
-// DirectSite instructs server to proxy access to this site not using
-// reverse tunnel
-func DirectSite(domainName string, clt auth.ClientI) ServerOption {
-	return func(s *server) error {
-		site, err := newlocalSite(s, domainName, clt)
+// Config is a reverse tunnel server configuration
+type Config struct {
+	// ID is the ID of this server proxy
+	ID string
+	// ListenAddr is a listening address for reverse tunnel server
+	ListenAddr utils.NetAddr
+	// PeerAddr is advertising address for this reverse tunnel server
+	PeerAddr utils.NetAddr
+	// HostSigners is a list of host signers
+	HostSigners []ssh.Signer
+	// Limiter is optional request limiter
+	Limiter *limiter.Limiter
+	// AccessPoint is access point
+	AccessPoint auth.AccessPoint
+	// NewCachingAccessPoint returns new caching access points
+	// per remote cluster
+	NewCachingAccessPoint state.NewCachingAccessPoint
+	// DirectClusters is a list of clusters accessed directly
+	DirectClusters []DirectCluster
+}
+
+// CheckAndSetDefaults checks parameters and sets default values
+func (cfg *Config) CheckAndSetDefaults() error {
+	if cfg.ID == "" {
+		return trace.BadParameter("missing parameter ID")
+	}
+	if cfg.PeerAddr.IsEmpty() {
+		return trace.BadParameter("missing parameter PeerAddr")
+	}
+	if cfg.ListenAddr.IsEmpty() {
+		return trace.BadParameter("missing parameter ListenAddr")
+	}
+	if cfg.Limiter == nil {
+		var err error
+		cfg.Limiter, err = limiter.NewLimiter(limiter.LimiterConfig{})
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		s.localSites = append(s.localSites, site)
-		return nil
 	}
-}
-
-// SetLimiter sets rate limiter for reverse tunnel
-func SetLimiter(limiter *limiter.Limiter) ServerOption {
-	return func(s *server) error {
-		s.limiter = limiter
-		return nil
-	}
+	return nil
 }
 
 // NewServer creates and returns a reverse tunnel server which is fully
 // initialized but hasn't been started yet
-func NewServer(addr utils.NetAddr, hostSigners []ssh.Signer,
-	authAPI auth.AccessPoint, fn state.NewCachingAccessPoint, opts ...ServerOption) (Server, error) {
-
-	srv := &server{
-		localSites:     []*localSite{},
-		remoteSites:    []*remoteSite{},
-		localAuth:      authAPI,
-		newAccessPoint: fn,
-	}
-	var err error
-	srv.limiter, err = limiter.NewLimiter(limiter.LimiterConfig{})
-	if err != nil {
+func NewServer(cfg Config) (Server, error) {
+	if err := cfg.CheckAndSetDefaults(); err != nil {
 		return nil, trace.Wrap(err)
 	}
-
-	for _, o := range opts {
-		if err := o(srv); err != nil {
-			return nil, trace.Wrap(err)
-		}
+	srv := &server{
+		Config:         cfg,
+		localSites:     []*localSite{},
+		remoteSites:    []*remoteSite{},
+		localAuth:      cfg.AccessPoint,
+		newAccessPoint: cfg.NewCachingAccessPoint,
+		limiter:        cfg.Limiter,
 	}
 
+	for _, clusterInfo := range cfg.DirectClusters {
+		cluster, err := newlocalSite(srv, clusterInfo.Name, clusterInfo.Client)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		srv.localSites = append(srv.localSites, cluster)
+	}
+
+	var err error
 	s, err := sshutils.NewServer(
 		teleport.ComponentReverseTunnel,
-		addr,
+		cfg.ListenAddr,
 		srv,
-		hostSigners,
+		cfg.HostSigners,
 		sshutils.AuthMethods{
 			PublicKey: srv.keyAuth,
 		},
-		sshutils.SetLimiter(srv.limiter),
+		sshutils.SetLimiter(cfg.Limiter),
 	)
 	if err != nil {
 		return nil, err
@@ -355,6 +387,10 @@ func (s *server) upsertSite(conn net.Conn, sshConn *ssh.ServerConn) (*remoteSite
 	}
 	log.Infof("[TUNNEL] site %v connected from %v. sites: %d",
 		domainName, conn.RemoteAddr(), len(s.remoteSites))
+	// treat first connection as a registered heartbeat,
+	// otherwise the connection information will appear after initial
+	// heartbeat delay
+	go site.registerHeartbeat(time.Now())
 	return site, remoteConn, nil
 }
 
@@ -431,9 +467,23 @@ func (rc *remoteConn) isInvalid() bool {
 
 // newRemoteSite helper creates and initializes 'remoteSite' instance
 func newRemoteSite(srv *server, domainName string) (*remoteSite, error) {
+	connInfo, err := services.NewTunnelConnection(
+		fmt.Sprintf("%v-%v", srv.ID, domainName),
+		services.TunnelConnectionSpecV2{
+			ClusterName:   domainName,
+			ProxyAddr:     srv.PeerAddr.String(),
+			ProxyName:     srv.ID,
+			LastHeartbeat: time.Now().UTC(),
+		},
+	)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	remoteSite := &remoteSite{
 		srv:        srv,
 		domainName: domainName,
+		connInfo:   connInfo,
 		log: log.WithFields(log.Fields{
 			teleport.Component: teleport.ComponentReverseTunnel,
 			teleport.ComponentFields: map[string]string{

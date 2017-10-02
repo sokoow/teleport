@@ -277,6 +277,13 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 		}
 		cfg.Proxy.ReverseTunnelListenAddr = *addr
 	}
+	if fc.Proxy.TunPeerAddr != "" {
+		addr, err := utils.ParseHostPortAddr(fc.Proxy.TunPeerAddr, int(defaults.SSHProxyTunnelListenPort))
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		cfg.Proxy.ReverseTunnelPeerAddr = *addr
+	}
 	if fc.Proxy.PublicAddr != "" {
 		addr, err := utils.ParseHostPortAddr(fc.Proxy.PublicAddr, int(defaults.HTTPListenPort))
 		if err != nil {

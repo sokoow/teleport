@@ -206,6 +206,10 @@ type ProxyConfig struct {
 	// ReverseTunnelListenAddr is address where reverse tunnel dialers connect to
 	ReverseTunnelListenAddr utils.NetAddr
 
+	// ReverseTunnelPeerAddr is address that this reverse tunnel address
+	// is advertised to reverse tunnel proxy peers
+	ReverseTunnelPeerAddr utils.NetAddr
+
 	// WebAddr is address for web portal of the proxy
 	WebAddr utils.NetAddr
 
@@ -318,6 +322,7 @@ func ApplyDefaults(cfg *Config) {
 	cfg.Proxy.SSHAddr = *defaults.ProxyListenAddr()
 	cfg.Proxy.WebAddr = *defaults.ProxyWebListenAddr()
 	cfg.Proxy.ReverseTunnelListenAddr = *defaults.ReverseTunnellListenAddr()
+	cfg.Proxy.ReverseTunnelPeerAddr = *defaults.ReverseTunnellListenAddr()
 	defaults.ConfigureLimiter(&cfg.Proxy.Limiter)
 
 	// defaults for the SSH service:
