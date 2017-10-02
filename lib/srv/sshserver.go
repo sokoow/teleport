@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/defaults"
@@ -67,6 +68,7 @@ type Server struct {
 	reg           *sessionRegistry
 	sessionServer rsession.Service
 	limiter       *limiter.Limiter
+	eventRecorder reporting.Client
 
 	labels      map[string]string                //static server labels
 	cmdLabels   map[string]services.CommandLabel //dymanic server labels
@@ -229,6 +231,13 @@ func SetKEXAlgorithms(kexAlgorithms []string) ServerOption {
 func SetMACAlgorithms(macAlgorithms []string) ServerOption {
 	return func(s *Server) error {
 		s.macAlgorithms = macAlgorithms
+		return nil
+	}
+}
+
+func SetEventRecorder(recorder reporting.Client) ServerOption {
+	return func(s *Server) error {
+		s.eventRecorder = recorder
 		return nil
 	}
 }

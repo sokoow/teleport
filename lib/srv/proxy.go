@@ -26,7 +26,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/reversetunnel"
 	"github.com/gravitational/teleport/lib/services"
@@ -198,6 +200,18 @@ func (t *proxySubsys) proxyToSite(
 			continue
 		}
 		log.Infof("[PROXY] connected to auth server: %v", authServer.GetAddr())
+		if t.srv.eventRecorder != nil {
+			err := t.srv.eventRecorder.Record(reporting.Event{
+				Type:      reporting.EventTypeNodeAccessed,
+				Timestamp: time.Now().UTC(),
+				NodeAccessed: &reporting.NodeAccessed{
+					NodeHash: authServer.GetAddr(),
+				},
+			})
+			if err != nil {
+				log.Warnf("failed to record event: %v", trace.DebugReport(err))
+			}
+		}
 		go func() {
 			var err error
 			defer func() {
@@ -301,6 +315,19 @@ func (t *proxySubsys) proxyToHost(
 	// this custom SSH handshake allows SSH proxy to relay the client's IP
 	// address to the SSH erver:
 	doHandshake(remoteAddr, ch, conn)
+
+	if t.srv.eventRecorder != nil {
+		err := t.srv.eventRecorder.Record(reporting.Event{
+			Type:      reporting.EventTypeNodeAccessed,
+			Timestamp: time.Now().UTC(),
+			NodeAccessed: &reporting.NodeAccessed{
+				NodeHash: serverAddr,
+			},
+		})
+		if err != nil {
+			log.Warnf("failed to record event: %v", trace.DebugReport(err))
+		}
+	}
 
 	go func() {
 		var err error

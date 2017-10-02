@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/auth/native"
@@ -701,6 +702,11 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		return trace.Wrap(err)
 	}
 
+	eventRecorder, err := reporting.NewClient(defaults.ControlPlaneAddr)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	SSHProxy, err := srv.New(cfg.Proxy.SSHAddr,
 		cfg.Hostname,
 		[]ssh.Signer{conn.Identity.KeySigner},
@@ -715,6 +721,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		srv.SetCiphers(cfg.Ciphers),
 		srv.SetKEXAlgorithms(cfg.KEXAlgorithms),
 		srv.SetMACAlgorithms(cfg.MACAlgorithms),
+		srv.SetEventRecorder(eventRecorder),
 	)
 	if err != nil {
 		return trace.Wrap(err)
