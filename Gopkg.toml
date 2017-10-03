@@ -127,3 +127,7 @@
 [[constraint]]
   name = "github.com/gravitational/trace"
   version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/gravitational/reporting"
+  branch = "roman/reporting"

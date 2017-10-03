@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport/lib/defaults"
@@ -200,18 +199,6 @@ func (t *proxySubsys) proxyToSite(
 			continue
 		}
 		log.Infof("[PROXY] connected to auth server: %v", authServer.GetAddr())
-		if t.srv.eventRecorder != nil {
-			err := t.srv.eventRecorder.Record(reporting.Event{
-				Type:      reporting.EventTypeNodeAccessed,
-				Timestamp: time.Now().UTC(),
-				NodeAccessed: &reporting.NodeAccessed{
-					NodeHash: authServer.GetAddr(),
-				},
-			})
-			if err != nil {
-				log.Warnf("failed to record event: %v", trace.DebugReport(err))
-			}
-		}
 		go func() {
 			var err error
 			defer func() {
@@ -316,18 +303,12 @@ func (t *proxySubsys) proxyToHost(
 	// address to the SSH erver:
 	doHandshake(remoteAddr, ch, conn)
 
-	if t.srv.eventRecorder != nil {
-		err := t.srv.eventRecorder.Record(reporting.Event{
-			Type:      reporting.EventTypeNodeAccessed,
-			Timestamp: time.Now().UTC(),
-			NodeAccessed: &reporting.NodeAccessed{
-				NodeHash: serverAddr,
-			},
-		})
-		if err != nil {
-			log.Warnf("failed to record event: %v", trace.DebugReport(err))
-		}
-	}
+	utils.RecordEvent(t.srv.eventRecorder, reporting.Event{
+		Type: reporting.EventTypeNodeAccessed,
+		NodeAccessed: &reporting.NodeAccessed{
+			NodeHash: strings.Split(serverAddr, ":")[0],
+		},
+	})
 
 	go func() {
 		var err error

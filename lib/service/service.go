@@ -19,6 +19,7 @@ limitations under the License.
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -702,7 +703,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		return trace.Wrap(err)
 	}
 
-	eventRecorder, err := reporting.NewClient(defaults.ControlPlaneAddr)
+	eventRecorder, err := reporting.NewClient(context.TODO(), defaults.ControlPlaneAddr)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -771,7 +772,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 					DisableUI:    process.Config.Proxy.DisableWebInterface,
 					ProxySSHAddr: cfg.Proxy.SSHAddr,
 					ProxyWebAddr: cfg.Proxy.WebAddr,
-				})
+				}, web.SetEventRecorder(eventRecorder))
 			if err != nil {
 				utils.Consolef(cfg.Console, "[PROXY] starting the web server: %v", err)
 				return trace.Wrap(err)
