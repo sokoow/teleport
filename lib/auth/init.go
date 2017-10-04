@@ -105,7 +105,7 @@ type InitConfig struct {
 }
 
 // Init instantiates and configures an instance of AuthServer
-func Init(cfg InitConfig) (*AuthServer, *Identity, error) {
+func Init(cfg InitConfig, opts ...AuthServerOption) (*AuthServer, *Identity, error) {
 	if cfg.DataDir == "" {
 		return nil, nil, trace.BadParameter("DataDir: data dir can not be empty")
 	}
@@ -121,7 +121,7 @@ func Init(cfg InitConfig) (*AuthServer, *Identity, error) {
 	defer cfg.Backend.ReleaseLock(domainName)
 
 	// check that user CA and host CA are present and set the certs if needed
-	asrv := NewAuthServer(&cfg)
+	asrv := NewAuthServer(&cfg, opts...)
 
 	// INTERNAL: Authorities (plus Roles) and ReverseTunnels don't follow the
 	// same pattern as the rest of the configuration (they are not configuration

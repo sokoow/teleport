@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/defaults"
@@ -66,6 +67,12 @@ type Authority interface {
 
 // AuthServerOption allows setting options as functional arguments to AuthServer
 type AuthServerOption func(*AuthServer)
+
+func SetEventRecorder(recorder reporting.Client) AuthServerOption {
+	return func(a *AuthServer) {
+		a.eventRecorder = recorder
+	}
+}
 
 // NewAuthServer creates and configures a new AuthServer instance
 func NewAuthServer(cfg *InitConfig, opts ...AuthServerOption) *AuthServer {
@@ -127,6 +134,7 @@ type AuthServer struct {
 	bk            backend.Backend
 	closeCtx      context.Context
 	cancelFunc    context.CancelFunc
+	eventRecorder reporting.Client
 
 	Authority
 
@@ -209,7 +217,7 @@ func (s *AuthServer) GenerateUserCert(key []byte, user services.User, allowedLog
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
+	log.Info("=== DEBUG === GenerateUserCert")
 	ca, err := s.Trust.GetCertAuthority(services.CertAuthID{
 		Type:       services.UserCA,
 		DomainName: domainName,
@@ -221,7 +229,7 @@ func (s *AuthServer) GenerateUserCert(key []byte, user services.User, allowedLog
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return s.Authority.GenerateUserCert(services.UserCertParams{
+	cert, err := s.Authority.GenerateUserCert(services.UserCertParams{
 		PrivateCASigningKey:   privateKey,
 		PublicUserKey:         key,
 		Username:              user.GetName(),
@@ -231,6 +239,10 @@ func (s *AuthServer) GenerateUserCert(key []byte, user services.User, allowedLog
 		Compatibility:         compatibility,
 		PermitAgentForwarding: canForwardAgents,
 	})
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return cert, nil
 }
 
 // WithUserLock executes function authenticateFn that perorms user authenticaton
@@ -293,6 +305,12 @@ func (s *AuthServer) SignIn(user string, password []byte) (services.WebSession, 
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	utils.RecordEvent(s.eventRecorder, reporting.Event{
+		Type: reporting.EventTypeUserLoggedIn,
+		UserLoggedIn: &reporting.UserLoggedIn{
+			UserHash: user,
+		},
+	})
 	return s.PreAuthenticatedSignIn(user)
 }
 

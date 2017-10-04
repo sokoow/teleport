@@ -8,6 +8,12 @@
   revision = "19f72df4d05d31cbe1c56bfc8045c96babff6c7e"
 
 [[projects]]
+  name = "github.com/Sirupsen/logrus"
+  packages = ["."]
+  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
+  version = "v1.0.3"
+
+[[projects]]
   branch = "master"
   name = "github.com/alecthomas/template"
   packages = [".","parse"]
@@ -140,6 +146,12 @@
   name = "github.com/gravitational/kingpin"
   packages = ["."]
   revision = "52bc17adf63c0807b5e5b5d91350703630f621c7"
+
+[[projects]]
+  branch = "roman/reporting"
+  name = "github.com/gravitational/reporting"
+  packages = ["."]
+  revision = "ee37a90e0c9f95b91d463a977633d9fc052ad8da"
 
 [[projects]]
   branch = "master"
@@ -390,6 +402,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "206dacde9d25202422550789814d38dc5a453f29beaeb6e00d059a8f4101515a"
+  inputs-digest = "9a623aae67ff9fe07bd8eadcfedc72bba4b2f13bd5612d6594740f2ee26ecbbf"
   solver-name = "gps-cdcl"
   solver-version = 1

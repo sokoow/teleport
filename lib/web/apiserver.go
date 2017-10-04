@@ -34,7 +34,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/client"
@@ -68,7 +67,6 @@ type Handler struct {
 	sites                   *ttlmap.TtlMap
 	sessionStreamPollPeriod time.Duration
 	clock                   clockwork.Clock
-	eventRecorder           reporting.Client
 }
 
 // HandlerOption is a functional argument - an option that can be passed
@@ -82,13 +80,6 @@ func SetSessionStreamPollPeriod(period time.Duration) HandlerOption {
 			return trace.BadParameter("period should be non zero")
 		}
 		h.sessionStreamPollPeriod = period
-		return nil
-	}
-}
-
-func SetEventRecorder(recorder reporting.Client) HandlerOption {
-	return func(h *Handler) error {
-		h.eventRecorder = recorder
 		return nil
 	}
 }
@@ -816,13 +807,6 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, p httpro
 	if err != nil {
 		return nil, trace.AccessDenied("need auth")
 	}
-
-	utils.RecordEvent(h.eventRecorder, reporting.Event{
-		Type: reporting.EventTypeUserLoggedIn,
-		UserLoggedIn: &reporting.UserLoggedIn{
-			UserHash: req.User,
-		},
-	})
 
 	return NewSessionResponse(ctx)
 }

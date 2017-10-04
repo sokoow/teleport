@@ -106,6 +106,8 @@ type TeleportProcess struct {
 
 	// identities of this process (credentials to auth sever, basically)
 	Identities map[teleport.Role]*auth.Identity
+
+	eventRecorder reporting.Client
 }
 
 func (process *TeleportProcess) GetAuthServer() *auth.AuthServer {
@@ -238,11 +240,17 @@ func NewTeleport(cfg *Config) (*TeleportProcess, error) {
 		}
 	}
 
+	eventRecorder, err := reporting.NewClient(context.TODO(), defaults.ControlPlaneAddr)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	process := &TeleportProcess{
-		Clock:      clockwork.NewRealClock(),
-		Supervisor: NewSupervisor(),
-		Config:     cfg,
-		Identities: make(map[teleport.Role]*auth.Identity),
+		Clock:         clockwork.NewRealClock(),
+		Supervisor:    NewSupervisor(),
+		Config:        cfg,
+		Identities:    make(map[teleport.Role]*auth.Identity),
+		eventRecorder: eventRecorder,
 	}
 
 	serviceStarted := false
@@ -337,7 +345,7 @@ func (process *TeleportProcess) initAuthService(authority auth.Authority) error 
 		Roles:           cfg.Auth.Roles,
 		AuthPreference:  cfg.Auth.Preference,
 		OIDCConnectors:  cfg.OIDCConnectors,
-	})
+	}, auth.SetEventRecorder(process.eventRecorder))
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -703,11 +711,6 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		return trace.Wrap(err)
 	}
 
-	eventRecorder, err := reporting.NewClient(context.TODO(), defaults.ControlPlaneAddr)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	SSHProxy, err := srv.New(cfg.Proxy.SSHAddr,
 		cfg.Hostname,
 		[]ssh.Signer{conn.Identity.KeySigner},
@@ -722,7 +725,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		srv.SetCiphers(cfg.Ciphers),
 		srv.SetKEXAlgorithms(cfg.KEXAlgorithms),
 		srv.SetMACAlgorithms(cfg.MACAlgorithms),
-		srv.SetEventRecorder(eventRecorder),
+		srv.SetEventRecorder(process.eventRecorder),
 	)
 	if err != nil {
 		return trace.Wrap(err)
@@ -772,7 +775,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 					DisableUI:    process.Config.Proxy.DisableWebInterface,
 					ProxySSHAddr: cfg.Proxy.SSHAddr,
 					ProxyWebAddr: cfg.Proxy.WebAddr,
-				}, web.SetEventRecorder(eventRecorder))
+				})
 			if err != nil {
 				utils.Consolef(cfg.Console, "[PROXY] starting the web server: %v", err)
 				return trace.Wrap(err)
