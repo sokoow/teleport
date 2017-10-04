@@ -24,6 +24,9 @@ type TunnelConnection interface {
 	// GetProxyAddr returns the proxy address
 	// this connection is established to
 	GetProxyAddr() string
+	// GetProxyAddr returns the proxy aname
+	// this connection is established to
+	GetProxyName() string
 	// GetLastHeartbeat returns time of the last heartbeat received from
 	// the tunnel over the connection
 	GetLastHeartbeat() time.Time

@@ -170,34 +170,13 @@ func (proxy *ProxyClient) ConnectToSite(ctx context.Context, quiet bool) (auth.C
 			}
 			return nil, trace.Wrap(err)
 		}
-		return &closerConn{Conn: conn, closers: []io.Closer{nodeClient}}, nil
+		return utils.NewCloserConn(conn, nodeClient), nil
 	}
 	clt, err := auth.NewClient("http://stub:0", sshDialer)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 	return clt, nil
-}
-
-// closerConn wraps connection and attaches additional closers to it
-type closerConn struct {
-	net.Conn
-	closers []io.Closer
-}
-
-// addCloser adds any closer in ctx that will be called
-// whenever server closes session channel
-func (c *closerConn) addCloser(closer io.Closer) {
-	c.closers = append(c.closers, closer)
-}
-
-func (c *closerConn) Close() error {
-	var errors []error
-	for _, closer := range c.closers {
-		errors = append(errors, closer.Close())
-	}
-	errors = append(errors, c.Conn.Close())
-	return trace.NewAggregate(errors...)
 }
 
 // nodeName removes the port number from the hostname, if present

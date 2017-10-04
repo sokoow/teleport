@@ -693,10 +693,11 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 			ID:                    conn.Identity.ID.HostUUID,
 			ListenAddr:            cfg.Proxy.ReverseTunnelListenAddr,
 			PeerAddr:              cfg.Proxy.ReverseTunnelPeerAddr,
+			PeerUser:              conn.Identity.Cert.ValidPrincipals[0],
 			HostSigners:           []ssh.Signer{conn.Identity.KeySigner},
 			AccessPoint:           authClient,
 			NewCachingAccessPoint: process.newLocalCache,
-			Limiter:               reverseTunnelLimter,
+			Limiter:               reverseTunnelLimiter,
 			DirectClusters: []reversetunnel.DirectCluster{
 				{
 					Name:   conn.Identity.Cert.Extensions[utils.CertExtensionAuthority],

@@ -440,7 +440,33 @@ func (cs *CachingAuthClient) GetTunnelConnections(clusterName string) (conns []s
 		}
 		return conns, err
 	}
-	if err := cs.presence.DeleteAllTunnelConnections(clusterName); err != nil {
+	if err := cs.presence.DeleteTunnelConnections(clusterName); err != nil {
+		if !trace.IsNotFound(err) {
+			return nil, trace.Wrap(err)
+		}
+	}
+	for _, conn := range conns {
+		cs.setTTL(conn)
+		if err := cs.presence.UpsertTunnelConnection(conn); err != nil {
+			return nil, trace.Wrap(err)
+		}
+	}
+	return conns, err
+}
+
+// GetAllTunnelConnections is a part of auth.AccessPoint implementation
+func (cs *CachingAuthClient) GetAllTunnelConnections() (conns []services.TunnelConnection, err error) {
+	err = cs.try(func() error {
+		conns, err = cs.ap.GetAllTunnelConnections()
+		return err
+	})
+	if err != nil {
+		if trace.IsConnectionProblem(err) {
+			return cs.presence.GetAllTunnelConnections()
+		}
+		return conns, err
+	}
+	if err := cs.presence.DeleteAllTunnelConnections(); err != nil {
 		if !trace.IsNotFound(err) {
 			return nil, trace.Wrap(err)
 		}

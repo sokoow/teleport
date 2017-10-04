@@ -592,13 +592,13 @@ func (s *ServicesTestSuite) TunnelConnectionsCRUD(c *C) {
 	c.Assert(len(out), Equals, 1)
 	fixtures.DeepCompare(c, out[0], conn)
 
-	err = s.PresenceS.DeleteAllTunnelConnections(clusterName)
+	err = s.PresenceS.DeleteAllTunnelConnections()
 	c.Assert(err, IsNil)
 
 	out, err = s.PresenceS.GetTunnelConnections(clusterName)
 	c.Assert(err, IsNil)
 	c.Assert(len(out), Equals, 0)
 
-	err = s.PresenceS.DeleteAllTunnelConnections(clusterName)
+	err = s.PresenceS.DeleteAllTunnelConnections()
 	c.Assert(err, IsNil)
 }

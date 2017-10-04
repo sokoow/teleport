@@ -529,12 +529,18 @@ func (c *Client) GetAllTunnelConnections() ([]services.TunnelConnection, error) 
 	return conns, nil
 }
 
-// DeleteAllTunnelConnections deletes all tunnel connections for cluster
-func (c *Client) DeleteAllTunnelConnections(clusterName string) error {
+// DeleteTunnelConnections deletes all tunnel connections for cluster
+func (c *Client) DeleteTunnelConnections(clusterName string) error {
 	if clusterName == "" {
 		return trace.BadParameter("missing parameter cluster name")
 	}
 	_, err := c.Delete(c.Endpoint("tunnelconnections", clusterName))
+	return trace.Wrap(err)
+}
+
+// DeleteAllTunnelConnections deletes all tunnel connections
+func (c *Client) DeleteAllTunnelConnections() error {
+	_, err := c.Delete(c.Endpoint("tunnelconnections"))
 	return trace.Wrap(err)
 }
 

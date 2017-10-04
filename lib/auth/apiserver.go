@@ -105,7 +105,8 @@ func NewAPIServer(config *APIConfig) http.Handler {
 	srv.POST("/:version/tunnelconnections", srv.withAuth(srv.upsertTunnelConnection))
 	srv.GET("/:version/tunnelconnections/:cluster", srv.withAuth(srv.getTunnelConnections))
 	srv.GET("/:version/tunnelconnections", srv.withAuth(srv.getAllTunnelConnections))
-	srv.DELETE("/:version/tunnelconnections/:cluster", srv.withAuth(srv.deleteAllTunnelConnections))
+	srv.DELETE("/:version/tunnelconnections/:cluster", srv.withAuth(srv.deleteTunnelConnections))
+	srv.DELETE("/:version/tunnelconnections", srv.withAuth(srv.deleteAllTunnelConnections))
 
 	// Reverse tunnels
 	srv.POST("/:version/reversetunnels", srv.withAuth(srv.upsertReverseTunnel))
@@ -1792,9 +1793,18 @@ func (s *APIServer) getAllTunnelConnections(auth ClientI, w http.ResponseWriter,
 	return items, nil
 }
 
-// deleteAllTunnelConnections deletes all tunnel connections for cluster
+// deleteTunnelConnections deletes all tunnel connections for cluster
+func (s *APIServer) deleteTunnelConnections(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	err := auth.DeleteTunnelConnections(p.ByName("cluster"))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return message("ok"), nil
+}
+
+// deleteAllTunnelConnections deletes all tunnel connections
 func (s *APIServer) deleteAllTunnelConnections(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
-	err := auth.DeleteAllTunnelConnections(p.ByName("cluster"))
+	err := auth.DeleteAllTunnelConnections()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

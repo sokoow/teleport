@@ -411,9 +411,18 @@ func (s *PresenceService) GetAllTunnelConnections() ([]services.TunnelConnection
 	return conns, nil
 }
 
-// DeleteAllTunnelConnections deletes all tunnel connections for cluster
-func (s *PresenceService) DeleteAllTunnelConnections(clusterName string) error {
+// DeleteTunnelConnections deletes all tunnel connections for cluster
+func (s *PresenceService) DeleteTunnelConnections(clusterName string) error {
 	err := s.DeleteBucket([]string{tunnelConnectionsPrefix}, clusterName)
+	if trace.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+// DeleteAllTunnelConnections deletes all tunnel connections
+func (s *PresenceService) DeleteAllTunnelConnections() error {
+	err := s.DeleteBucket([]string{}, tunnelConnectionsPrefix)
 	if trace.IsNotFound(err) {
 		return nil
 	}

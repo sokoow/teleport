@@ -105,8 +105,11 @@ type Presence interface {
 	// GetAllTunnelConnections returns all tunnel connections
 	GetAllTunnelConnections() ([]TunnelConnection, error)
 
+	// DeleteTunnelConnections deletes all tunnel connections for cluster
+	DeleteTunnelConnections(clusterName string) error
+
 	// DeleteAllTunnelConnections deletes all tunnel connections for cluster
-	DeleteAllTunnelConnections(clusterName string) error
+	DeleteAllTunnelConnections() error
 }
 
 // NewNamespace returns new namespace

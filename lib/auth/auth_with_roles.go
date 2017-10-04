@@ -943,14 +943,24 @@ func (a *AuthWithRoles) GetAllTunnelConnections() ([]services.TunnelConnection, 
 	return a.authServer.GetAllTunnelConnections()
 }
 
-func (a *AuthWithRoles) DeleteAllTunnelConnections(clusterName string) error {
+func (a *AuthWithRoles) DeleteTunnelConnections(clusterName string) error {
 	if err := a.action(defaults.Namespace, services.KindTunnelConnection, services.VerbList); err != nil {
 		return trace.Wrap(err)
 	}
 	if err := a.action(defaults.Namespace, services.KindTunnelConnection, services.VerbDelete); err != nil {
 		return trace.Wrap(err)
 	}
-	return a.authServer.DeleteAllTunnelConnections(clusterName)
+	return a.authServer.DeleteTunnelConnections(clusterName)
+}
+
+func (a *AuthWithRoles) DeleteAllTunnelConnections() error {
+	if err := a.action(defaults.Namespace, services.KindTunnelConnection, services.VerbList); err != nil {
+		return trace.Wrap(err)
+	}
+	if err := a.action(defaults.Namespace, services.KindTunnelConnection, services.VerbDelete); err != nil {
+		return trace.Wrap(err)
+	}
+	return a.authServer.DeleteAllTunnelConnections()
 }
 
 func (a *AuthWithRoles) Close() error {
