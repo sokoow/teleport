@@ -169,7 +169,7 @@ func (a *AuthServer) GetDomainName() (string, error) {
 
 // GenerateHostCert uses the private key of the CA to sign the public key of the host
 // (along with meta data like host ID, node name, roles, and ttl) to generate a host certificate.
-func (s *AuthServer) GenerateHostCert(hostPublicKey []byte, hostID, nodeName, clusterName string, roles teleport.Roles, ttl time.Duration) ([]byte, error) {
+func (s *AuthServer) GenerateHostCert(hostPublicKey []byte, hostID, nodeName, clusterName string, roles teleport.Roles, additionalPrincipals []string, ttl time.Duration) ([]byte, error) {
 	domainName, err := s.GetDomainName()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -192,13 +192,14 @@ func (s *AuthServer) GenerateHostCert(hostPublicKey []byte, hostID, nodeName, cl
 
 	// create and sign!
 	return s.Authority.GenerateHostCert(services.HostCertParams{
-		PrivateCASigningKey: caPrivateKey,
-		PublicHostKey:       hostPublicKey,
-		HostID:              hostID,
-		NodeName:            nodeName,
-		ClusterName:         clusterName,
-		Roles:               roles,
-		TTL:                 ttl,
+		AdditionalPrincipals: additionalPrincipals,
+		PrivateCASigningKey:  caPrivateKey,
+		PublicHostKey:        hostPublicKey,
+		HostID:               hostID,
+		NodeName:             nodeName,
+		ClusterName:          clusterName,
+		Roles:                roles,
+		TTL:                  ttl,
 	})
 }
 
@@ -454,7 +455,7 @@ func (s *AuthServer) GenerateToken(roles teleport.Roles, ttl time.Duration) (str
 
 // GenerateServerKeys generates new host private keys and certificates (signed
 // by the host certificate authority) for a node.
-func (s *AuthServer) GenerateServerKeys(hostID string, nodeName string, roles teleport.Roles) (*PackedKeys, error) {
+func (s *AuthServer) GenerateServerKeys(hostID string, nodeName string, roles teleport.Roles, additionalPrincipals []string) (*PackedKeys, error) {
 	domainName, err := s.GetDomainName()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -467,7 +468,7 @@ func (s *AuthServer) GenerateServerKeys(hostID string, nodeName string, roles te
 	}
 
 	// generate host certificate with an infinite ttl
-	c, err := s.GenerateHostCert(pub, hostID, nodeName, domainName, roles, 0)
+	c, err := s.GenerateHostCert(pub, hostID, nodeName, domainName, roles, additionalPrincipals, 0)
 	if err != nil {
 		log.Warningf("[AUTH] Node %q [%v] can not join: certificate generation error: %v", nodeName, hostID, err)
 		return nil, trace.Wrap(err)
@@ -529,7 +530,7 @@ func (s *AuthServer) checkTokenTTL(token string) bool {
 // If a token was generated with a TTL, it gets enforced (can't register new nodes after TTL expires)
 // If a token was generated with a TTL=0, it means it's a single-use token and it gets destroyed
 // after a successful registration.
-func (s *AuthServer) RegisterUsingToken(token, hostID string, nodeName string, role teleport.Role) (*PackedKeys, error) {
+func (s *AuthServer) RegisterUsingToken(token, hostID string, nodeName string, role teleport.Role, additionalPrincipals []string) (*PackedKeys, error) {
 	log.Infof("[AUTH] Node %q [%v] trying to join with role: %v", nodeName, hostID, role)
 	if hostID == "" {
 		return nil, trace.BadParameter("HostID cannot be empty")
@@ -558,7 +559,7 @@ func (s *AuthServer) RegisterUsingToken(token, hostID string, nodeName string, r
 	}
 
 	// generate and return host certificate and keys
-	keys, err := s.GenerateServerKeys(hostID, nodeName, teleport.Roles{role})
+	keys, err := s.GenerateServerKeys(hostID, nodeName, teleport.Roles{role}, additionalPrincipals)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

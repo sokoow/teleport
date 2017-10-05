@@ -706,12 +706,13 @@ func (s *APIServer) generateKeyPair(auth ClientI, w http.ResponseWriter, r *http
 }
 
 type generateHostCertReq struct {
-	Key         []byte         `json:"key"`
-	HostID      string         `json:"hostname"`
-	NodeName    string         `json:"node_name"`
-	ClusterName string         `json:"auth_domain"`
-	Roles       teleport.Roles `json:"roles"`
-	TTL         time.Duration  `json:"ttl"`
+	Key                  []byte         `json:"key"`
+	HostID               string         `json:"hostname"`
+	NodeName             string         `json:"node_name"`
+	ClusterName          string         `json:"auth_domain"`
+	Roles                teleport.Roles `json:"roles"`
+	AdditionalPrincipals []string       `json:"additional_principals"`
+	TTL                  time.Duration  `json:"ttl"`
 }
 
 func (s *APIServer) generateHostCert(auth ClientI, w http.ResponseWriter, r *http.Request, _ httprouter.Params, version string) (interface{}, error) {
@@ -720,7 +721,7 @@ func (s *APIServer) generateHostCert(auth ClientI, w http.ResponseWriter, r *htt
 		return nil, trace.Wrap(err)
 	}
 
-	cert, err := auth.GenerateHostCert(req.Key, req.HostID, req.NodeName, req.ClusterName, req.Roles, req.TTL)
+	cert, err := auth.GenerateHostCert(req.Key, req.HostID, req.NodeName, req.ClusterName, req.Roles, req.AdditionalPrincipals, req.TTL)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -769,10 +770,11 @@ func (s *APIServer) generateToken(auth ClientI, w http.ResponseWriter, r *http.R
 }
 
 type registerUsingTokenReq struct {
-	HostID   string        `json:"hostID"`
-	NodeName string        `json:"node_name"`
-	Role     teleport.Role `json:"role"`
-	Token    string        `json:"token"`
+	HostID               string        `json:"hostID"`
+	NodeName             string        `json:"node_name"`
+	Role                 teleport.Role `json:"role"`
+	Token                string        `json:"token"`
+	AdditionalPrincipals []string      `json:"additional_principals"`
 }
 
 func (s *APIServer) registerUsingToken(auth ClientI, w http.ResponseWriter, r *http.Request, _ httprouter.Params, version string) (interface{}, error) {
@@ -781,7 +783,7 @@ func (s *APIServer) registerUsingToken(auth ClientI, w http.ResponseWriter, r *h
 		return nil, trace.Wrap(err)
 	}
 
-	keys, err := auth.RegisterUsingToken(req.Token, req.HostID, req.NodeName, req.Role)
+	keys, err := auth.RegisterUsingToken(req.Token, req.HostID, req.NodeName, req.Role, req.AdditionalPrincipals)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

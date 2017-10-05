@@ -60,11 +60,12 @@ type AuthTunnel struct {
 
 	// sshServer implements the nuts & bolts of serving an SSH connection
 	// to create a tunnel
-	sshServer       *sshutils.Server
-	hostSigner      ssh.Signer
-	hostCertChecker ssh.CertChecker
-	userCertChecker ssh.CertChecker
-	limiter         *limiter.Limiter
+	sshServer             *sshutils.Server
+	hostSigner            ssh.Signer
+	hostCertChecker       ssh.CertChecker
+	remoteHostCertChecker ssh.CertChecker
+	userCertChecker       ssh.CertChecker
+	limiter               *limiter.Limiter
 }
 
 // TunClient is HTTP client that works over SSH tunnel
@@ -146,6 +147,7 @@ func NewTunnel(addr utils.NetAddr,
 	}
 	tunnel.userCertChecker = ssh.CertChecker{IsAuthority: tunnel.isUserAuthority}
 	tunnel.hostCertChecker = ssh.CertChecker{IsAuthority: tunnel.isHostAuthority}
+	tunnel.remoteHostCertChecker = ssh.CertChecker{IsAuthority: tunnel.isRemoteHostAuthority}
 	return tunnel, nil
 }
 
@@ -242,6 +244,38 @@ func (s *AuthTunnel) isHostAuthority(auth ssh.PublicKey) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// isRemoteHostAuthority is called during checking the client key, to see if the signing
+// key is the real host CA authority key.
+func (s *AuthTunnel) isRemoteHostAuthority(key ssh.PublicKey) bool {
+	domainName, err := s.authServer.GetDomainName()
+	if err != nil {
+		return false
+	}
+
+	authorities, err := s.authServer.GetCertAuthorities(services.HostCA, false)
+	if err != nil {
+		log.Errorf("failed to retrieve user authority key, err: %v", err)
+		return false
+	}
+	for _, auth := range authorities {
+		if auth.GetClusterName() == domainName {
+			continue
+		}
+		checkers, err := auth.Checkers()
+		if err != nil {
+			log.Errorf("failed to parse CA keys: %v", err)
+			return false
+		}
+		for _, checker := range checkers {
+			if sshutils.KeysEqual(checker, key) {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 
@@ -409,53 +443,72 @@ func (s *AuthTunnel) onAPIConnection(sconn *ssh.ServerConn, sshChan ssh.Channel,
 	}))
 }
 
+func (s *AuthTunnel) checkHostCert(checker ssh.CertChecker, conn ssh.ConnMetadata, cert *ssh.Certificate) (*ssh.Permissions, error) {
+	err := checker.CheckHostKey(conn.User(), conn.RemoteAddr(), cert)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if err := checker.CheckCert(conn.User(), cert); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	perms := &ssh.Permissions{
+		Extensions: map[string]string{
+			ExtHost: conn.User(),
+			ExtRole: cert.Permissions.Extensions[utils.CertExtensionRole],
+		},
+	}
+	return perms, nil
+}
+
 func (s *AuthTunnel) keyAuth(
 	conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 
-	log.Infof("[AUTH] keyAuth: %v->%v, user=%v", conn.RemoteAddr(), conn.LocalAddr(), conn.User())
+	l := log.WithFields(log.Fields{
+		"remote":    conn.RemoteAddr(),
+		"locale":    conn.LocalAddr(),
+		"user":      conn.User(),
+		"component": "AUTH",
+	})
+
+	l.Infof("auth attmempt")
 	cert, ok := key.(*ssh.Certificate)
 	if !ok {
-		return nil, trace.Errorf("ERROR: Server doesn't support provided key type")
+		return nil, trace.AccessDenied("server doesn't support provided key type")
 	}
 
 	if cert.CertType == ssh.HostCert {
-		err := s.hostCertChecker.CheckHostKey(conn.User(), conn.RemoteAddr(), key)
-		if err != nil {
-			log.Warningf("conn(%v->%v, user=%v) ERROR: failed auth user %v, err: %v",
-				conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
-			return nil, err
+		perms, err := s.checkHostCert(s.hostCertChecker, conn, cert)
+		if err == nil {
+			return perms, nil
 		}
-		if err := s.hostCertChecker.CheckCert(conn.User(), cert); err != nil {
-			log.Warningf("conn(%v->%v, user=%v) ERROR: Failed to authorize user %v, err: %v",
-				conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
+		// check if remote trusted proxy wants to connect to our API
+		remotePerms, remoteErr := s.checkHostCert(s.remoteHostCertChecker, conn, cert)
+		if remoteErr != nil {
+			l.Warningf("failed to authenticate: %v", err)
 			return nil, trace.Wrap(err)
 		}
-		perms := &ssh.Permissions{
-			Extensions: map[string]string{
-				ExtHost: conn.User(),
-				ExtRole: cert.Permissions.Extensions[utils.CertExtensionRole],
-			},
+		// only allow proxies to connect, otherwise they get too elevated privileges
+		// TODO(klizhentas) - create special role e.g. remoteproxy?
+		if remotePerms.Extensions[ExtRole] != string(teleport.RoleProxy) {
+			return nil, trace.AccessDenied("remote connections from %q are not allowed", remotePerms.Extensions[ExtRole])
 		}
-		return perms, nil
+		return remotePerms, nil
 	}
 	// we are assuming that this is a user cert
 	if err := s.userCertChecker.CheckCert(conn.User(), cert); err != nil {
-		log.Warningf("conn(%v->%v, user=%v) ERROR: Failed to authorize user %v, err: %v",
-			conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
+		l.Warningf("failed to authorize user: %v", err)
 		return nil, trace.Wrap(err)
 	}
 
 	ca, err := s.findUserAuthority(cert.SignatureKey)
 	if err != nil {
-		log.Warningf("conn(%v->%v, user=%v) ERROR: Failed to authorize user %v, err: %v",
-			conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
+		l.Warningf("failed to authenticate user: %v", err)
 		return nil, trace.Wrap(err)
 	}
 
 	clusterName, err := s.authServer.GetDomainName()
 	if err != nil {
-		log.Warningf("conn(%v->%v, user=%v) ERROR: Failed to authorize user %v, err: %v",
-			conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
+		l.Warningf("failed to authenticate user: %v", err)
 		return nil, trace.Wrap(err)
 	}
 

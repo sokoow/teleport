@@ -149,6 +149,7 @@ func newClusterPeer(srv *server, connInfo services.TunnelConnection) (*clusterPe
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
 	clusterPeer.clt = clt
 
 	accessPoint, err := srv.newAccessPoint(clt, []string{"reverse", connInfo.GetClusterName()})
@@ -207,36 +208,43 @@ func (s *clusterPeer) Dial(from, to net.Addr) (conn net.Conn, err error) {
 
 	client, err := proxy.DialWithDeadline(to.Network(), s.connInfo.GetProxyAddr(), s.srv.ClientConfig())
 	if err != nil {
+		s.log.Warningf("[TUNNEL] failed to dial to peer %v", err)
 		return nil, trace.Wrap(err)
 	}
-	defer client.Close()
 
-	se, err := client.NewSession()
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	defer se.Close()
-
-	writer, err := se.StdinPipe()
+	session, err := client.NewSession()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	reader, err := se.StdoutPipe()
+	writer, err := session.StdinPipe()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
+	reader, err := session.StdoutPipe()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	var subsystem string
+	if to.String() == RemoteAuthServer {
+		subsystem = fmt.Sprintf("proxy:@%v", s.connInfo.GetClusterName())
+	} else {
+		subsystem = fmt.Sprintf("proxy:%v@%v", to, s.connInfo.GetClusterName())
+	}
 	// Request opening TCP connection to the remote host
-	if err := se.RequestSubsystem(fmt.Sprintf("proxy:%v@%v", to, s.connInfo.GetClusterName())); err != nil {
+	err = session.RequestSubsystem(subsystem)
+	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return utils.NewPipeNetConn(
+	pipeConn := utils.NewPipeNetConn(
 		reader,
 		writer,
-		se,
+		session,
 		from,
 		to,
-	), nil
+	)
+	return utils.NewCloserConn(pipeConn, session, client), nil
 }

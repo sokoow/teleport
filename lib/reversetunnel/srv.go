@@ -591,14 +591,14 @@ func (s *server) GetSite(name string) (RemoteSite, error) {
 			return s.remoteSites[i], nil
 		}
 	}
-	for i := range s.clusterPeers {
-		if s.clusterPeers[i].GetName() == name {
-			return s.clusterPeers[i], nil
-		}
-	}
 	for i := range s.localSites {
 		if s.localSites[i].GetName() == name {
 			return s.localSites[i], nil
+		}
+	}
+	for i := range s.clusterPeers {
+		if s.clusterPeers[i].GetName() == name {
+			return s.clusterPeers[i], nil
 		}
 	}
 	return nil, trace.NotFound("cluster %q is not found", name)
@@ -619,7 +619,7 @@ func (s *server) RemoveSite(domainName string) error {
 			return nil
 		}
 	}
-	return trace.NotFound("site '%v' not found", domainName)
+	return trace.NotFound("cluster %q is not found", domainName)
 }
 
 type remoteConn struct {

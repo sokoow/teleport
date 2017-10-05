@@ -36,6 +36,8 @@ type TunnelConnection interface {
 	Check() error
 	// CheckAndSetDefaults checks and set default values for any missing fields.
 	CheckAndSetDefaults() error
+	// String returns user friendly representation of this connection
+	String() string
 }
 
 // MustCreateTunnelConnection returns new connection from V2 spec or panics if
@@ -75,6 +77,11 @@ type TunnelConnectionV2 struct {
 	Metadata Metadata `json:"metadata"`
 	// Spec contains user specification
 	Spec TunnelConnectionSpecV2 `json:"spec"`
+}
+
+// String returns user-friendly description of this connection
+func (r *TunnelConnectionV2) String() string {
+	return fmt.Sprintf("TunnelConnection(name=%v, cluster=%v, proxy=%v)", r.Metadata.Name, r.Spec.ClusterName, r.Spec.ProxyAddr)
 }
 
 // GetMetadata returns object metadata

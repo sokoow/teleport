@@ -250,6 +250,7 @@ func (proxy *ProxyClient) ConnectToNode(ctx context.Context, nodeAddress string,
 	}
 	conn, chans, reqs, err := newClientConn(ctx, pipeNetConn, nodeAddress, sshConfig)
 	if err != nil {
+		log.Errorf("[REAL] error: %v", err)
 		if utils.IsHandshakeFailedError(err) {
 			proxySession.Close()
 			parts := strings.Split(nodeAddress, "@")

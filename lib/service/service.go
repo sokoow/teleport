@@ -317,24 +317,27 @@ func (process *TeleportProcess) initAuthService(authority auth.Authority) error 
 
 	// first, create the AuthServer
 	authServer, identity, err := auth.Init(auth.InitConfig{
-		Backend:         b,
-		Authority:       authority,
-		ClusterName:     cfg.Auth.ClusterName,
-		AuthServiceName: cfg.Hostname,
-		DataDir:         cfg.DataDir,
-		HostUUID:        cfg.HostUUID,
-		NodeName:        cfg.Hostname,
-		Authorities:     cfg.Auth.Authorities,
-		ReverseTunnels:  cfg.ReverseTunnels,
-		Trust:           cfg.Trust,
-		Presence:        cfg.Presence,
-		Provisioner:     cfg.Provisioner,
-		Identity:        cfg.Identity,
-		Access:          cfg.Access,
-		StaticTokens:    cfg.Auth.StaticTokens,
-		Roles:           cfg.Auth.Roles,
-		AuthPreference:  cfg.Auth.Preference,
-		OIDCConnectors:  cfg.OIDCConnectors,
+		Backend: b,
+		// Some clients are connecting to the server via this alias
+		// so the principal in the certificate should contain this value
+		AdditionalPrincipals: []string{reversetunnel.RemoteAuthServer},
+		Authority:            authority,
+		ClusterName:          cfg.Auth.ClusterName,
+		AuthServiceName:      cfg.Hostname,
+		DataDir:              cfg.DataDir,
+		HostUUID:             cfg.HostUUID,
+		NodeName:             cfg.Hostname,
+		Authorities:          cfg.Auth.Authorities,
+		ReverseTunnels:       cfg.ReverseTunnels,
+		Trust:                cfg.Trust,
+		Presence:             cfg.Presence,
+		Provisioner:          cfg.Provisioner,
+		Identity:             cfg.Identity,
+		Access:               cfg.Access,
+		StaticTokens:         cfg.Auth.StaticTokens,
+		Roles:                cfg.Auth.Roles,
+		AuthPreference:       cfg.Auth.Preference,
+		OIDCConnectors:       cfg.OIDCConnectors,
 	})
 	if err != nil {
 		return trace.Wrap(err)
@@ -581,6 +584,11 @@ func (process *TeleportProcess) initSSH() error {
 func (process *TeleportProcess) RegisterWithAuthServer(token string, role teleport.Role, eventName string) {
 	cfg := process.Config
 	identityID := auth.IdentityID{Role: role, HostUUID: cfg.HostUUID, NodeName: cfg.Hostname}
+	if role == teleport.RoleProxy {
+		identityID.AdditionalPrincipals = []string{
+			cfg.Proxy.PeerAddr.String(),
+		}
+	}
 
 	// this means the server has not been initialized yet, we are starting
 	// the registering client that attempts to connect to the auth server
@@ -692,7 +700,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		reversetunnel.Config{
 			ID:                    conn.Identity.ID.HostUUID,
 			ListenAddr:            cfg.Proxy.ReverseTunnelListenAddr,
-			PeerAddr:              cfg.Proxy.ReverseTunnelPeerAddr,
+			PeerAddr:              cfg.Proxy.PeerAddr,
 			PeerUser:              conn.Identity.Cert.ValidPrincipals[0],
 			HostSigners:           []ssh.Signer{conn.Identity.KeySigner},
 			AccessPoint:           authClient,

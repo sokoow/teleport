@@ -29,7 +29,7 @@ import (
 // LocalRegister is used to generate host keys when a node or proxy is running within the same process
 // as the auth server. This method does not need to use provisioning tokens.
 func LocalRegister(dataDir string, id IdentityID, authServer *AuthServer) error {
-	keys, err := authServer.GenerateServerKeys(id.HostUUID, id.NodeName, teleport.Roles{id.Role})
+	keys, err := authServer.GenerateServerKeys(id.HostUUID, id.NodeName, teleport.Roles{id.Role}, id.AdditionalPrincipals)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -63,7 +63,7 @@ func Register(dataDir, token string, id IdentityID, servers []utils.NetAddr) err
 	defer client.Close()
 
 	// create the host certificate and keys
-	keys, err := client.RegisterUsingToken(tok, id.HostUUID, id.NodeName, id.Role)
+	keys, err := client.RegisterUsingToken(tok, id.HostUUID, id.NodeName, id.Role, id.AdditionalPrincipals)
 	if err != nil {
 		return trace.Wrap(err)
 	}

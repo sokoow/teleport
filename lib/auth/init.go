@@ -41,6 +41,9 @@ type InitConfig struct {
 	// Backend is auth backend to use
 	Backend backend.Backend
 
+	// AdditionalPrincipals is the list of additional principals
+	AdditionalPrincipals []string
+
 	// Authority is key generator that we use
 	Authority Authority
 
@@ -270,9 +273,10 @@ func Init(cfg InitConfig) (*AuthServer, *Identity, error) {
 
 	// read host keys from disk or create them if they don't exist
 	iid := IdentityID{
-		HostUUID: cfg.HostUUID,
-		NodeName: cfg.NodeName,
-		Role:     teleport.RoleAdmin,
+		HostUUID:             cfg.HostUUID,
+		NodeName:             cfg.NodeName,
+		Role:                 teleport.RoleAdmin,
+		AdditionalPrincipals: cfg.AdditionalPrincipals,
 	}
 	identity, err := initKeys(asrv, cfg.DataDir, iid)
 	if err != nil {
@@ -439,7 +443,7 @@ func initKeys(a *AuthServer, dataDir string, id IdentityID) (*Identity, error) {
 	}
 
 	if !keyExists || !certExists {
-		packedKeys, err := a.GenerateServerKeys(id.HostUUID, id.NodeName, teleport.Roles{id.Role})
+		packedKeys, err := a.GenerateServerKeys(id.HostUUID, id.NodeName, teleport.Roles{id.Role}, id.AdditionalPrincipals)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -483,9 +487,10 @@ type Identity struct {
 
 // IdentityID is a combination of role, host UUID, and node name.
 type IdentityID struct {
-	Role     teleport.Role
-	HostUUID string
-	NodeName string
+	Role                 teleport.Role
+	HostUUID             string
+	NodeName             string
+	AdditionalPrincipals []string
 }
 
 // Equals returns true if two identities are equal
@@ -563,7 +568,10 @@ func ReadIdentityFromKeyPair(keyBytes, certBytes []byte) (*Identity, error) {
 	}
 
 	return &Identity{
-		ID:              IdentityID{HostUUID: cert.ValidPrincipals[0], Role: role},
+		ID: IdentityID{
+			HostUUID: cert.ValidPrincipals[0],
+			Role:     role,
+		},
 		AuthorityDomain: authorityDomain,
 		KeyBytes:        keyBytes,
 		CertBytes:       certBytes,

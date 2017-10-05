@@ -56,17 +56,20 @@ import (
 type Server struct {
 	sync.Mutex
 
-	namespace     string
-	addr          utils.NetAddr
-	hostname      string
-	certChecker   ssh.CertChecker
-	srv           *sshutils.Server
-	hostSigner    ssh.Signer
-	shell         string
-	authService   auth.AccessPoint
-	reg           *sessionRegistry
-	sessionServer rsession.Service
-	limiter       *limiter.Limiter
+	namespace string
+	addr      utils.NetAddr
+	hostname  string
+	// certChecker checks the CA of the connecting user
+	certChecker ssh.CertChecker
+	// hostCertChecker checks the CA of the host connecting to the proxy
+	hostCertChecker ssh.CertChecker
+	srv             *sshutils.Server
+	hostSigner      ssh.Signer
+	shell           string
+	authService     auth.AccessPoint
+	reg             *sessionRegistry
+	sessionServer   rsession.Service
+	limiter         *limiter.Limiter
 
 	labels      map[string]string                //static server labels
 	cmdLabels   map[string]services.CommandLabel //dymanic server labels
@@ -265,6 +268,7 @@ func New(addr utils.NetAddr,
 		return nil, trace.Wrap(err)
 	}
 	s.certChecker = ssh.CertChecker{IsAuthority: s.isAuthority}
+	s.hostCertChecker = ssh.CertChecker{IsAuthority: s.isLocalHostAuthority}
 
 	for _, o := range options {
 		if err := o(s); err != nil {
@@ -540,6 +544,37 @@ func (s *Server) checkPermissionToLogin(cert *ssh.Certificate, teleportUser, osU
 	return domainName, nil
 }
 
+// isLocalHostAuthority is called during checking the client key, to see if the signing
+// key is the real host CA authority key.
+func (s *Server) isLocalHostAuthority(key ssh.PublicKey) bool {
+	localCluster, err := s.authService.GetDomainName()
+	if err != nil {
+		return false
+	}
+
+	authorities, err := s.authService.GetCertAuthorities(services.HostCA, false)
+	if err != nil {
+		log.Errorf("failed to retrieve host authority key, err: %v", err)
+		return false
+	}
+	for _, auth := range authorities {
+		if auth.GetClusterName() != localCluster {
+			continue
+		}
+		checkers, err := auth.Checkers()
+		if err != nil {
+			log.Errorf("failed to parse CA keys: %v", err)
+			return false
+		}
+		for _, checker := range checkers {
+			if sshutils.KeysEqual(checker, key) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // fetchRoleSet fretches role set for a given user
 func (s *Server) fetchRoleSet(teleportUser string, clusterName string) (services.RoleSet, error) {
 	localClusterName, err := s.authService.GetDomainName()
@@ -649,6 +684,30 @@ func (s *Server) keyAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permiss
 		log.Debugf("[SSH] need a valid principal for key %v", fingerprint)
 		return nil, trace.BadParameter("need a valid principal for key %v", fingerprint)
 	}
+
+	if cert.CertType == ssh.HostCert {
+		if !s.proxyMode {
+			return nil, trace.BadParameter("hosts can only connect in proxy mode")
+		}
+		err := s.hostCertChecker.CheckHostKey(conn.User(), conn.RemoteAddr(), key)
+		if err != nil {
+			log.Warningf("conn(%v->%v, user=%v) ERROR: failed auth user %v, err: %v",
+				conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
+			return nil, err
+		}
+		if err := s.hostCertChecker.CheckCert(conn.User(), cert); err != nil {
+			log.Warningf("conn(%v->%v, user=%v) ERROR: Failed to authorize user %v, err: %v",
+				conn.RemoteAddr(), conn.LocalAddr(), conn.User(), conn.User(), err)
+			return nil, trace.Wrap(err)
+		}
+		perms := &ssh.Permissions{
+			Extensions: map[string]string{
+				utils.CertTeleportPeerProxy: utils.CertTeleportPeerProxy,
+			},
+		}
+		return perms, nil
+	}
+
 	if len(cert.KeyId) == 0 {
 		log.Debugf("[SSH] need a valid key ID for key %v", fingerprint)
 		return nil, trace.BadParameter("need a valid key for key %v", fingerprint)
@@ -689,7 +748,7 @@ func (s *Server) keyAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permiss
 		}
 	}
 
-	// this is the only way I know of to pass valid principal with the
+	// this is the only way we know of to pass valid principal with the
 	// connection
 	permissions.Extensions[utils.CertTeleportUser] = teleportUser
 

@@ -8,6 +8,7 @@ import (
 	"github.com/gravitational/teleport/lib/utils/proxy"
 
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -68,9 +69,12 @@ func (p *ProxyDialer) Dial(network, addr string) (net.Conn, error) {
 		return nil, trace.Wrap(err)
 	}
 
+	log.Infof("[PROXY DIALER] dialed to %v", dstAddr)
+
 	// this will perform authentication against auth server via SSH
 	client, err := proxy.NewClientConnWithDeadline(
 		netConn, RemoteAuthServer, p.Config)
+	log.Infof("[PROXY DIALER] got client: %v, %v", client, err)
 	if err != nil {
 		netConn.Close()
 		return nil, trace.Wrap(err)
@@ -79,6 +83,7 @@ func (p *ProxyDialer) Dial(network, addr string) (net.Conn, error) {
 	// Dial again to HTTP server (auth server will interpret this request
 	// and will give access to the socket)
 	conn, err := client.Dial(network, addr)
+	log.Infof("[PROXY DIALER] got conn to the auth server", conn, err)
 	if err != nil {
 		netConn.Close()
 		client.Close()

@@ -112,7 +112,7 @@ func (s *remoteSite) addConn(conn net.Conn, sshConn ssh.Conn) (*remoteConn, erro
 }
 
 func (s *remoteSite) getLatestTunnelConnection() (services.TunnelConnection, error) {
-	conns, err := s.accessPoint.GetTunnelConnections(s.domainName)
+	conns, err := s.srv.AccessPoint.GetTunnelConnections(s.domainName)
 	if err != nil {
 		s.log.Warningf("[TUNNEL] failed to fetch tunnel statuses: %v", err)
 		return nil, trace.Wrap(err)
@@ -144,9 +144,11 @@ func (s *remoteSite) GetStatus() string {
 
 func (s *remoteSite) registerHeartbeat(t time.Time) {
 	s.connInfo.SetLastHeartbeat(t)
-	err := s.clt.UpsertTunnelConnection(s.connInfo)
+	err := s.srv.AccessPoint.UpsertTunnelConnection(s.connInfo)
 	if err != nil {
 		log.Warningf("[TUNNEL] failed to register heartbeat: %v", err)
+	} else {
+		log.Debugf("[TUNNEL] registered heartbeat: %v", s.connInfo)
 	}
 }
 

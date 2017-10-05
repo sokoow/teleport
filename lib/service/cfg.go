@@ -206,15 +206,14 @@ type ProxyConfig struct {
 	// ReverseTunnelListenAddr is address where reverse tunnel dialers connect to
 	ReverseTunnelListenAddr utils.NetAddr
 
-	// ReverseTunnelPeerAddr is address that this reverse tunnel address
-	// is advertised to reverse tunnel proxy peers
-	ReverseTunnelPeerAddr utils.NetAddr
-
 	// WebAddr is address for web portal of the proxy
 	WebAddr utils.NetAddr
 
 	// SSHAddr is address of ssh proxy
 	SSHAddr utils.NetAddr
+
+	// SSHPeerAddr is the address proxy advertises to its peers
+	SSHPeerAddr utils.NetAddr
 
 	// TLSKey is a base64 encoded private key used by web portal
 	TLSKey string
@@ -226,6 +225,9 @@ type ProxyConfig struct {
 
 	// PublicAddr is the public address the Teleport UI can be accessed at.
 	PublicAddr utils.NetAddr
+
+	// PeerAddr is the address this proxy advertises to its peers
+	PeerAddr utils.NetAddr
 }
 
 // AuthConfig is a configuration of the auth server
@@ -320,9 +322,9 @@ func ApplyDefaults(cfg *Config) {
 	// defaults for the SSH proxy service:
 	cfg.Proxy.Enabled = true
 	cfg.Proxy.SSHAddr = *defaults.ProxyListenAddr()
+	cfg.Proxy.PeerAddr = *defaults.ProxyListenAddr()
 	cfg.Proxy.WebAddr = *defaults.ProxyWebListenAddr()
 	cfg.Proxy.ReverseTunnelListenAddr = *defaults.ReverseTunnellListenAddr()
-	cfg.Proxy.ReverseTunnelPeerAddr = *defaults.ReverseTunnellListenAddr()
 	defaults.ConfigureLimiter(&cfg.Proxy.Limiter)
 
 	// defaults for the SSH service:

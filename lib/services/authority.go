@@ -30,6 +30,9 @@ type HostCertParams struct {
 	Roles teleport.Roles
 	// TTL defines how long a certificate is valid for
 	TTL time.Duration
+	// AdditionalPrincipals is a list of additional pricipals to add for this
+	// host certificate
+	AdditionalPrincipals []string
 }
 
 func (c *HostCertParams) Check() error {

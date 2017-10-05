@@ -22,6 +22,7 @@ package config
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -277,12 +278,16 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 		}
 		cfg.Proxy.ReverseTunnelListenAddr = *addr
 	}
-	if fc.Proxy.TunPeerAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.TunPeerAddr, int(defaults.SSHProxyTunnelListenPort))
+	if fc.Proxy.PeerAddr != "" {
+		addr, err := utils.ParseHostPortAddr(fc.Proxy.PeerAddr, int(defaults.SSHProxyTunnelListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		cfg.Proxy.ReverseTunnelPeerAddr = *addr
+		cfg.Proxy.PeerAddr = *addr
+	} else if fc.AdvertiseIP != nil {
+		// derive address from advertise IP and proxy SSH address port
+		_, port, _ := net.SplitHostPort(cfg.Proxy.SSHAddr.Addr)
+		cfg.Proxy.PeerAddr = utils.NetAddr{Addr: fmt.Sprintf("%v:%v", fc.AdvertiseIP, port)}
 	}
 	if fc.Proxy.PublicAddr != "" {
 		addr, err := utils.ParseHostPortAddr(fc.Proxy.PublicAddr, int(defaults.HTTPListenPort))

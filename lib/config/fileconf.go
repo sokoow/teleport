@@ -85,7 +85,7 @@ var (
 		"type":               true,
 		"data_dir":           true,
 		"web_listen_addr":    true,
-		"tunnel_listen_addr": true,
+		"peer_addr":          true,
 		"ssh_listen_addr":    true,
 		"listen_addr":        true,
 		"https_key_file":     true,
@@ -634,13 +634,13 @@ type CommandLabel struct {
 
 // Proxy is `proxy_service` section of the config file:
 type Proxy struct {
-	Service     `yaml:",inline"`
-	WebAddr     string `yaml:"web_listen_addr,omitempty"`
-	TunAddr     string `yaml:"tunnel_listen_addr,omitempty"`
-	TunPeerAddr string `yaml:"tunnel_peer_addr,omitempty"`
-	KeyFile     string `yaml:"https_key_file,omitempty"`
-	CertFile    string `yaml:"https_cert_file,omitempty"`
-	PublicAddr  string `yaml:"public_addr,omitempty"`
+	Service    `yaml:",inline"`
+	WebAddr    string `yaml:"web_listen_addr,omitempty"`
+	TunAddr    string `yaml:"tunnel_listen_addr,omitempty"`
+	KeyFile    string `yaml:"https_key_file,omitempty"`
+	CertFile   string `yaml:"https_cert_file,omitempty"`
+	PublicAddr string `yaml:"public_addr,omitempty"`
+	PeerAddr   string `yaml:"peer_addr,omitempty"`
 }
 
 // ReverseTunnel is a SSH reverse tunnel mantained by one cluster's

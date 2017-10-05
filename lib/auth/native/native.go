@@ -164,6 +164,7 @@ func (n *nauth) GenerateHostCert(c services.HostCertParams) ([]byte, error) {
 		ValidBefore:     validBefore,
 		CertType:        ssh.HostCert,
 	}
+	cert.ValidPrincipals = utils.Deduplicate(append(cert.ValidPrincipals, c.AdditionalPrincipals...))
 	cert.Permissions.Extensions = make(map[string]string)
 	cert.Permissions.Extensions[utils.CertExtensionRole] = c.Roles.String()
 	cert.Permissions.Extensions[utils.CertExtensionAuthority] = string(c.ClusterName)
