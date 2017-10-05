@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/services"
@@ -232,6 +233,13 @@ func (a *AuthServer) ValidateOIDCAuthCallback(q url.Values) (*OIDCAuthResponse, 
 			response.HostSigners = append(response.HostSigners, authority)
 		}
 	}
+
+	utils.RecordEvent(a.eventRecorder, reporting.Event{
+		Type: reporting.EventTypeUserLoggedIn,
+		UserLoggedIn: &reporting.UserLoggedIn{
+			UserHash: user.GetName(),
+		},
+	})
 
 	return response, nil
 }

@@ -30,16 +30,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/services/local"
 	"github.com/gravitational/teleport/lib/utils"
-	"github.com/gravitational/trace"
 
 	"github.com/coreos/go-oidc/oidc"
+	"github.com/gravitational/reporting"
+	"github.com/gravitational/trace"
 	"github.com/jonboulle/clockwork"
 	saml2 "github.com/russellhaering/gosaml2"
 	log "github.com/sirupsen/logrus"
@@ -217,7 +217,6 @@ func (s *AuthServer) GenerateUserCert(key []byte, user services.User, allowedLog
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	log.Info("=== DEBUG === GenerateUserCert")
 	ca, err := s.Trust.GetCertAuthority(services.CertAuthID{
 		Type:       services.UserCA,
 		DomainName: domainName,
@@ -242,6 +241,12 @@ func (s *AuthServer) GenerateUserCert(key []byte, user services.User, allowedLog
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	utils.RecordEvent(s.eventRecorder, reporting.Event{
+		Type: reporting.EventTypeUserLoggedIn,
+		UserLoggedIn: &reporting.UserLoggedIn{
+			UserHash: user.GetName(),
+		},
+	})
 	return cert, nil
 }
 
