@@ -1103,7 +1103,7 @@ func (s *Server) handleWinChange(ch ssh.Channel, req *ssh.Request, ctx *ctx) err
 }
 
 func (s *Server) handleSubsystem(ch ssh.Channel, req *ssh.Request, ctx *ctx) error {
-	sb, err := parseSubsystemRequest(s, req)
+	sb, err := parseSubsystemRequest(s, req, ctx)
 	if err != nil {
 		ctx.Warnf("[SSH] %v failed to parse subsystem request: %v", err)
 		return trace.Wrap(err)

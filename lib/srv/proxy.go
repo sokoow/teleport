@@ -49,6 +49,7 @@ type proxySubsys struct {
 	closeC      chan struct{}
 	error       error
 	closeOnce   sync.Once
+	injectIP    bool
 }
 
 // parseProxySubsys looks at the requested subsystem name and returns a fully configured
@@ -59,7 +60,7 @@ type proxySubsys struct {
 //  "proxy:@clustername"        - Teleport request to connect to an auth server for cluster with name 'clustername'
 //  "proxy:host:22@clustername" - Teleport request to connect to host:22 on cluster 'clustername'
 //  "proxy:host:22@namespace@clustername"
-func parseProxySubsys(request string, srv *Server) (*proxySubsys, error) {
+func parseProxySubsys(request string, srv *Server, isPeer bool) (*proxySubsys, error) {
 	log.Debugf("parse_proxy_subsys(%q)", request)
 	var (
 		clusterName  string
@@ -116,6 +117,7 @@ func parseProxySubsys(request string, srv *Server) (*proxySubsys, error) {
 		port:        targetPort,
 		clusterName: clusterName,
 		closeC:      make(chan struct{}),
+		injectIP:    !isPeer,
 	}, nil
 }
 
@@ -299,8 +301,11 @@ func (t *proxySubsys) proxyToHost(
 		return trace.Wrap(err)
 	}
 	// this custom SSH handshake allows SSH proxy to relay the client's IP
-	// address to the SSH erver:
-	doHandshake(remoteAddr, ch, conn)
+	// address to the SSH server, do not inject IP in the handshake
+	// when other proxy is connecting to us
+	if t.injectIP {
+		doHandshake(remoteAddr, ch, conn)
+	}
 
 	go func() {
 		var err error

@@ -95,6 +95,9 @@ type ctx struct {
 	// clusterName is the name of the cluster current user
 	// is authenticated with
 	clusterName string
+
+	// isPeer is set for peers connecting to the proxy
+	isPeer bool
 }
 
 // addCloser adds any closer in ctx that will be called
@@ -199,6 +202,7 @@ func newCtx(srv *Server, conn *ssh.ServerConn) *ctx {
 		teleportUser:     conn.Permissions.Extensions[utils.CertTeleportUser],
 		clusterName:      conn.Permissions.Extensions[utils.CertTeleportClusterName],
 		login:            conn.User(),
+		isPeer:           conn.Permissions.Extensions[utils.CertTeleportPeerProxy] == utils.CertTeleportPeerProxy,
 	}
 	ctx.Entry = log.WithFields(srv.logFields(log.Fields{
 		"local":        conn.LocalAddr(),

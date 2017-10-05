@@ -37,13 +37,13 @@ type subsystem interface {
 	wait() error
 }
 
-func parseSubsystemRequest(srv *Server, req *ssh.Request) (subsystem, error) {
+func parseSubsystemRequest(srv *Server, req *ssh.Request, ctx *ctx) (subsystem, error) {
 	var s subsys
 	if err := ssh.Unmarshal(req.Payload, &s); err != nil {
 		return nil, fmt.Errorf("failed to parse subsystem request, error: %v", err)
 	}
 	if srv.proxyMode && strings.HasPrefix(s.Name, "proxy:") {
-		return parseProxySubsys(s.Name, srv)
+		return parseProxySubsys(s.Name, srv, ctx.isPeer)
 	}
 	if srv.proxyMode && strings.HasPrefix(s.Name, "proxysites") {
 		return parseProxySitesSubsys(s.Name, srv)
