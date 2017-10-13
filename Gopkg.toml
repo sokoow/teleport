@@ -134,5 +134,9 @@
   source = "github.com/gravitational/go-oidc"
 
 [[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "v1.0.3"
+
+[[constraint]]
   name = "github.com/gravitational/reporting"
   branch = "roman/reporting"
