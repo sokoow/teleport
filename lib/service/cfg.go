@@ -123,6 +123,9 @@ type Config struct {
 	// MACAlgorithms is a list of message authentication codes (MAC) that
 	// the server supports. If omitted the defaults will be used.
 	MACAlgorithms []string
+
+	// LicenseFile is a full path to the license file
+	LicenseFile string
 }
 
 // ApplyToken assigns a given token to all internal services but only if token

@@ -43,8 +43,10 @@ import (
 // same as main() but has a testing switch
 //   - cmdlineArgs are passed from main()
 //   - distro can be "" (OSS version) or "enterprise"
-//   - testRun is 'true' when running under an integration test
-func Run(cmdlineArgs []string, distro teleport.DistroType, testRun bool) (executedCommand string, conf *service.Config) {
+//   - dontStart, if set to 'true', initializes config and auxiliary endpoints
+//     but does not start teleport which might be useful for tests and custom
+//     pre-start handlers
+func Run(cmdlineArgs []string, distro teleport.DistroType, dontStart bool) (executedCommand string, conf *service.Config) {
 	var err error
 
 	// initialize the teleport library with the proper distro flag
@@ -148,7 +150,7 @@ func Run(cmdlineArgs []string, distro teleport.DistroType, testRun bool) (execut
 		if err = config.Configure(&ccf, conf); err != nil {
 			utils.FatalError(err)
 		}
-		if !testRun {
+		if !dontStart {
 			log.Info(conf.DebugDumpToYAML())
 		}
 		if ccf.HTTPProfileEndpoint {
@@ -175,8 +177,8 @@ func Run(cmdlineArgs []string, distro teleport.DistroType, testRun bool) (execut
 				}
 			}()
 		}
-		if !testRun {
-			err = onStart(conf)
+		if !dontStart {
+			err = OnStart(conf)
 		}
 	case scpc.FullCommand():
 		err = onSCP(&scpCommand)
@@ -194,8 +196,8 @@ func Run(cmdlineArgs []string, distro teleport.DistroType, testRun bool) (execut
 	return command, conf
 }
 
-// onStart is the handler for "start" CLI command
-func onStart(config *service.Config) error {
+// OnStart is the handler for "start" CLI command
+func OnStart(config *service.Config) error {
 	srv, err := service.NewTeleport(config)
 	if err != nil {
 		return trace.Wrap(err, "initializing teleport")
