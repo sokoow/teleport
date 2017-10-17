@@ -27,6 +27,9 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/defaults"
@@ -37,8 +40,6 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/mailgun/oxy/forward"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
 )
 
 // remoteSite is a remote site that established the inbound connecton to
@@ -62,7 +63,7 @@ type remoteSite struct {
 }
 
 func (s *remoteSite) SetAgent(a agent.Agent, ch ssh.Channel) {
-	s.log.Infof("[TUNNEL] forwarding agent to remote site %v through tunnel", s.domainName)
+	s.Infof("forwarding agent to remote site %v through tunnel", s.domainName)
 	stop := false
 
 	try := func() (net.Conn, error) {

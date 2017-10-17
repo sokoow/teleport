@@ -48,7 +48,7 @@ type Server interface {
 	GetNamespace() string
 	AdvertiseAddr() string
 
-	LogFields(fields map[string]interface{}) log.Fields
+	Component() string
 	PermitUserEnvironment() bool
 
 	EmitAuditEvent(string, events.EventFields)
@@ -280,13 +280,17 @@ func NewServerContext(srv Server, conn *ssh.ServerConn) *ServerContext {
 		Login:            conn.User(),
 		//AgentReady:       make(chan bool),
 	}
-	ctx.Entry = log.WithFields(srv.LogFields(log.Fields{
-		"local":        conn.LocalAddr(),
-		"remote":       conn.RemoteAddr(),
-		"login":        ctx.Login,
-		"teleportUser": ctx.TeleportUser,
-		"id":           ctx.id,
-	}))
+
+	ctx.Entry = log.WithFields(log.Fields{
+		trace.Component: srv.Component(),
+		trace.ComponentFields: log.Fields{
+			"local":        conn.LocalAddr(),
+			"remote":       conn.RemoteAddr(),
+			"login":        ctx.Login,
+			"teleportUser": ctx.TeleportUser,
+			"id":           ctx.id,
+		},
+	})
 	return ctx
 }
 

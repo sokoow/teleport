@@ -412,13 +412,13 @@ func (a *Agent) proxyTransport(ch ssh.Channel, reqC <-chan *ssh.Request) {
 		}
 	} else {
 		log.Errorf("tryingt o dial!")
-		hostCertificate, err := getCertificate(server, a.clt)
+		hostCertificate, err := getCertificate(server, a.Client)
 		if err != nil {
 			// TODO(russjones): Handle this better.
 			log.Errorf("unable to get cert from cache")
 		}
 
-		remoteServer, err := forward.New(a.clt, a.agent, server, hostCertificate)
+		remoteServer, err := forward.New(a.Client, a.agent, server, hostCertificate)
 		if err != nil {
 			// TODO(russjones): Handle this better.
 			log.Errorf("unable to create new forward server")
@@ -642,10 +642,10 @@ func (a *Agent) processRequests(conn *ssh.Client) error {
 			if nch == nil {
 				continue
 			}
-			a.log.Infof("[TUNNEL CLIENT] forward request: %v", nch.ChannelType())
+			a.Infof("[TUNNEL CLIENT] forward request: %v", nch.ChannelType())
 			ch, req, err := nch.Accept()
 			if err != nil {
-				a.log.Errorf("failed to accept request: %v", err)
+				a.Errorf("failed to accept request: %v", err)
 				continue
 			}
 			log.Errorf("sending to proxyagentforward")

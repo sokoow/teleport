@@ -76,11 +76,8 @@ func (s *Server) AdvertiseAddr() string {
 	return s.dstAddr
 }
 
-func (s *Server) LogFields(fields map[string]interface{}) log.Fields {
-	return log.Fields{
-		teleport.Component:       "forwarder",
-		teleport.ComponentFields: fields,
-	}
+func (s *Server) Component() string {
+	return "forwarder"
 }
 
 func (s *Server) EmitAuditEvent(eventType string, fields events.EventFields) {

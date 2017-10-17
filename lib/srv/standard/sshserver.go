@@ -318,17 +318,11 @@ func (s *Server) getNamespace() string {
 	return services.ProcessNamespace(s.namespace)
 }
 
-func (s *Server) logFields(fields log.Fields) log.Fields {
-	var component string
+func (s *Server) Component() string {
 	if s.proxyMode {
-		component = teleport.ComponentProxy
-	} else {
-		component = teleport.ComponentNode
+		return teleport.ComponentProxy
 	}
-	return log.Fields{
-		trace.Component:       component,
-		trace.ComponentFields: fields,
-	}
+	return teleport.ComponentNode
 }
 
 // Addr returns server address
