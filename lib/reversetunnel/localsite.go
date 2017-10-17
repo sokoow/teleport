@@ -22,9 +22,13 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/services"
+	"github.com/gravitational/teleport/lib/srv/forward"
 
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
@@ -64,6 +68,18 @@ type localSite struct {
 	lastActive  time.Time
 	srv         *server
 	accessPoint auth.AccessPoint
+
+	agent     agent.Agent
+	agentChan ssh.Channel
+}
+
+func (s *localSite) SetAgent(a agent.Agent, ch ssh.Channel) {
+	recordingProxy := true
+
+	if recordingProxy {
+		s.agent = a
+		s.agentChan = ch
+	}
 }
 
 func (s *localSite) CachingAccessPoint() (auth.AccessPoint, error) {
@@ -93,6 +109,31 @@ func (s *localSite) GetLastConnected() time.Time {
 // Dial dials a given host in this site (cluster).
 func (s *localSite) Dial(from net.Addr, to net.Addr) (net.Conn, error) {
 	s.log.Debugf("local.Dial(from=%v, to=%v)", from, to)
+
+	recordingProxy := true
+
+	// if we are in recording proxy mode, return a connection to a in-memory
+	// server that can forward requests to a remote ssh server (can be teleport
+	// or openssh)
+	if recordingProxy {
+		hostCertificate, err := getCertificate(to.String(), s.client)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+
+		remoteServer, err := forward.New(s.client, s.agent, from.String(), hostCertificate)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+
+		conn, err := remoteServer.Dial(to.String())
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+
+		return conn, nil
+	}
+
 	return net.Dial(to.Network(), to.String())
 }
 
