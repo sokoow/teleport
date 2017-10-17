@@ -65,6 +65,16 @@ type Terminal interface {
 	SetTermType(string)
 }
 
+// NewTerminal returns a new terminal. Terminal can be local or remote
+// depending on cluster configuration.
+func NewTerminal(ctx *ServerContext) (Terminal, error) {
+	if ctx.srv.Component() == "forwarder" {
+		return NewRemoteTerminal(ctx)
+	}
+
+	return NewLocalTerminal(ctx)
+}
+
 // terminal is a local PTY created by Teleport nodes.
 type terminal struct {
 	wg sync.WaitGroup

@@ -411,20 +411,35 @@ func (a *Agent) proxyTransport(ch ssh.Channel, reqC <-chan *ssh.Request) {
 			log.Debugf(trace.DebugReport(err))
 		}
 	} else {
-		log.Errorf("tryingt o dial!")
-		hostCertificate, err := getCertificate(server, a.Client)
+		// get cluster level config to figure out session recording mode
+		clusterConfig, err := a.Client.GetClusterConfig()
 		if err != nil {
 			// TODO(russjones): Handle this better.
-			log.Errorf("unable to get cert from cache")
+			log.Errorf("err: %v", err)
+			return
 		}
 
-		remoteServer, err := forward.New(a.Client, a.agent, server, hostCertificate)
-		if err != nil {
-			// TODO(russjones): Handle this better.
-			log.Errorf("unable to create new forward server")
-		}
+		// if we are recording at the proxy, return a connection to a in-memory
+		// server that can forward requests to a remote ssh server (can be teleport
+		// or openssh)
+		if clusterConfig.GetSessionRecording() == services.RecordAtProxy {
+			log.Errorf("tryingt o dial!")
+			hostCertificate, err := getCertificate(server, a.Client)
+			if err != nil {
+				// TODO(russjones): Handle this better.
+				log.Errorf("unable to get cert from cache")
+			}
 
-		conn, err = remoteServer.Dial(server)
+			remoteServer, err := forward.New(a.Client, a.agent, server, hostCertificate)
+			if err != nil {
+				// TODO(russjones): Handle this better.
+				log.Errorf("unable to create new forward server")
+			}
+
+			conn, err = remoteServer.Dial(server)
+		} else {
+			conn, err = net.Dial("tcp", server)
+		}
 	}
 
 	// if we were not able to connect to any server, write the last connection

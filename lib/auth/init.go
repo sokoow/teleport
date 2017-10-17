@@ -102,6 +102,8 @@ type InitConfig struct {
 	// AuthPreference defines the authentication type (local, oidc) and second
 	// factor (off, otp, u2f) passed in from a configuration file.
 	AuthPreference services.AuthPreference
+
+	SessionRecording services.ClusterConfig
 }
 
 // Init instantiates and configures an instance of AuthServer
@@ -179,6 +181,12 @@ func Init(cfg InitConfig) (*AuthServer, *Identity, error) {
 		return nil, nil, trace.Wrap(err)
 	}
 	log.Infof("[INIT] Updating Cluster Configuration: %v", cfg.AuthPreference)
+
+	err = asrv.SetClusterConfig(cfg.SessionRecording)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	log.Infof("[INIT] Updating Cluster Configuration: %v", cfg.SessionRecording)
 
 	// always create the default namespace
 	err = asrv.UpsertNamespace(services.NewNamespace(defaults.Namespace))

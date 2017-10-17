@@ -74,9 +74,13 @@ type localSite struct {
 }
 
 func (s *localSite) SetAgent(a agent.Agent, ch ssh.Channel) {
-	recordingProxy := true
+	clusterConfig, err := s.client.GetClusterConfig()
+	if err != nil {
+		s.log.Errorf("Unable to set agent: %v", err)
+		return
+	}
 
-	if recordingProxy {
+	if clusterConfig.GetSessionRecording() == services.RecordAtProxy {
 		s.agent = a
 		s.agentChan = ch
 	}
@@ -108,14 +112,19 @@ func (s *localSite) GetLastConnected() time.Time {
 
 // Dial dials a given host in this site (cluster).
 func (s *localSite) Dial(from net.Addr, to net.Addr) (net.Conn, error) {
-	s.log.Debugf("local.Dial(from=%v, to=%v)", from, to)
+	//s.log.Debugf("local.Dial(from=%v, to=%v)", from, to)
 
-	recordingProxy := true
+	// get cluster level config to figure out session recording mode
+	clusterConfig, err := s.client.GetClusterConfig()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
 
-	// if we are in recording proxy mode, return a connection to a in-memory
+	// if we are recording at the proxy, return a connection to a in-memory
 	// server that can forward requests to a remote ssh server (can be teleport
 	// or openssh)
-	if recordingProxy {
+	if clusterConfig.GetSessionRecording() == services.RecordAtProxy {
+		s.log.Debugf("Dial(from=%v, to=%v) using recording proxy", from, to)
 		hostCertificate, err := getCertificate(to.String(), s.client)
 		if err != nil {
 			return nil, trace.Wrap(err)
@@ -134,6 +143,7 @@ func (s *localSite) Dial(from net.Addr, to net.Addr) (net.Conn, error) {
 		return conn, nil
 	}
 
+	s.log.Debugf("Dial(from=%v, to=%v) using standard proxy", from, to)
 	return net.Dial(to.Network(), to.String())
 }
 

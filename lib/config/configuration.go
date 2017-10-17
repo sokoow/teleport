@@ -400,6 +400,12 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 			log.Warnf(warningMessage)
 		}
 	}
+	// read in and set session recording
+	sessionRecording, err := fc.Auth.SessionRecording.Parse()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	cfg.Auth.SessionRecording = sessionRecording
 
 	// apply "ssh_service" section
 	if fc.SSH.ListenAddress != "" {

@@ -141,7 +141,7 @@ func (s *ClusterConfigurationService) SetClusterConfig(c services.ClusterConfig)
 		return trace.Wrap(err)
 	}
 
-	err = s.CreateVal([]string{"cluster_configuration"}, "general", []byte(data), backend.Forever)
+	err = s.UpsertVal([]string{"cluster_configuration"}, "general", []byte(data), backend.Forever)
 	if err != nil {
 		return trace.Wrap(err)
 	}

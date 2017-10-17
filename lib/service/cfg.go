@@ -260,6 +260,9 @@ type AuthConfig struct {
 	// Preference defines the authentication preference (type and second factor) for
 	// the auth server.
 	Preference services.AuthPreference
+
+	// SessionRecording stores where sessions are recorded: proxy, node, or off.
+	SessionRecording services.ClusterConfig
 }
 
 // SSHConfig configures SSH server node role

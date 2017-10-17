@@ -128,6 +128,7 @@ var (
 		"kex_algos":          false,
 		"mac_algos":          false,
 		"connector_name":     false,
+		"session_recording":  false,
 	}
 )
 
@@ -491,6 +492,9 @@ type Auth struct {
 	// it here overrides defaults.
 	// TODO: THIS SETTING IS DEPRECATED
 	DynamicConfig *bool `yaml:"dynamic_config,omitempty"`
+
+	// SessionRecording determines where the session is recorded: node, proxy, or off.
+	SessionRecording SessionRecording `yaml:"session_recording"`
 }
 
 // TrustedCluster struct holds configuration values under "trusted_clusters" key
@@ -614,6 +618,14 @@ func (u *UniversalSecondFactor) Parse() services.U2F {
 		AppID:  u.AppID,
 		Facets: u.Facets,
 	}
+}
+
+type SessionRecording string
+
+func (s SessionRecording) Parse() (services.ClusterConfig, error) {
+	return services.NewClusterConfig(services.ClusterConfigSpecV2{
+		SessionRecording: services.RecordingType(s),
+	})
 }
 
 // SSH is 'ssh_service' section of the config file
