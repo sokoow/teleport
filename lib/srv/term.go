@@ -315,6 +315,11 @@ func (b *ptyBuffer) Write(p []byte) (n int, err error) {
 }
 
 func (t *remoteTerminal) Run() error {
+	err := prepareSession(t.session, t.ctx)
+	if err != nil {
+		log.Errorf("Prepare session failed: %v", err)
+	}
+
 	// combine stdout and stderr
 	stdout, err := t.session.StdoutPipe()
 	if err != nil {
