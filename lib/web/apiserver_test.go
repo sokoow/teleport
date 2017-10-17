@@ -75,6 +75,8 @@ import (
 	kyaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
+const hostID = "00000000-0000-0000-0000-000000000000"
+
 func TestWeb(t *testing.T) {
 	TestingT(t)
 }
@@ -243,7 +245,7 @@ func (s *WebSuite) SetUpTest(c *C) {
 	hpriv, hpub, err := s.authServer.GenerateKeyPair("")
 	c.Assert(err, IsNil)
 	hcert, err := s.authServer.GenerateHostCert(
-		hpub, "00000000-0000-0000-0000-000000000000", s.domainName, s.domainName, teleport.Roles{teleport.RoleAdmin}, 0)
+		hpub, hostID, s.domainName, s.domainName, teleport.Roles{teleport.RoleAdmin}, 0)
 	c.Assert(err, IsNil)
 
 	// set up user CA and set up a user that has access to the server
@@ -276,16 +278,17 @@ func (s *WebSuite) SetUpTest(c *C) {
 	c.Assert(s.node.Start(), IsNil)
 
 	// create reverse tunnel service:
-	revTunServer, err := reversetunnel.NewServer(
-		utils.NetAddr{
+	revTunServer, err := reversetunnel.NewServer(reversetunnel.Config{
+		ID: node.ID(),
+		ListenAddr: utils.NetAddr{
 			AddrNetwork: "tcp",
 			Addr:        fmt.Sprintf("%v:0", s.domainName),
 		},
-		[]ssh.Signer{s.signer},
-		s.roleAuth,
-		state.NoCache,
-		reversetunnel.DirectSite(s.domainName, s.roleAuth),
-	)
+		HostSigners:           []ssh.Signer{s.signer},
+		AccessPoint:           s.roleAuth,
+		NewCachingAccessPoint: state.NoCache,
+		DirectClusters:        []reversetunnel.DirectCluster{{Name: s.domainName, Client: s.roleAuth}},
+	})
 	c.Assert(err, IsNil)
 
 	apiPort := s.freePorts[len(s.freePorts)-1]
@@ -309,7 +312,7 @@ func (s *WebSuite) SetUpTest(c *C) {
 
 	// create a tun client
 	tunClient, err := auth.NewTunClient("test", []utils.NetAddr{tunAddr},
-		s.domainName, []ssh.AuthMethod{ssh.PublicKeys(s.signer)})
+		hostID, []ssh.AuthMethod{ssh.PublicKeys(s.signer)})
 	c.Assert(err, IsNil)
 
 	// proxy server:
@@ -542,11 +545,12 @@ func (s *WebSuite) TestSAMLSuccess(c *C) {
 }
 
 type authPack struct {
-	user    string
-	otp     *hotp.HOTP
-	session *CreateSessionResponse
-	clt     *client.WebClient
-	cookies []*http.Cookie
+	otpSecret string
+	user      string
+	otp       *hotp.HOTP
+	session   *CreateSessionResponse
+	clt       *client.WebClient
+	cookies   []*http.Cookie
 }
 
 func (s *WebSuite) authPackFromResponse(c *C, re *roundtrip.Response) *authPack {
@@ -600,6 +604,15 @@ func (s *WebSuite) authPack(c *C) *authPack {
 	pass := "abc123"
 	rawSecret := "def456"
 	otpSecret := base32.StdEncoding.EncodeToString([]byte(rawSecret))
+
+	ap, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+		Type:         teleport.Local,
+		SecondFactor: teleport.OTP,
+	})
+	c.Assert(err, IsNil)
+	err = s.authServer.SetAuthPreference(ap)
+	c.Assert(err, IsNil)
+
 	s.createUser(c, user, pass, otpSecret)
 
 	// create a valid otp token
@@ -630,10 +643,11 @@ func (s *WebSuite) authPack(c *C) *authPack {
 	jar.SetCookies(s.url(), re.Cookies())
 
 	return &authPack{
-		user:    user,
-		session: sess,
-		clt:     clt,
-		cookies: re.Cookies(),
+		otpSecret: otpSecret,
+		user:      user,
+		session:   sess,
+		clt:       clt,
+		cookies:   re.Cookies(),
 	}
 }
 
@@ -710,6 +724,24 @@ func (s *WebSuite) TestCSRF(c *C) {
 		c.Assert(err, NotNil)
 		c.Assert(trace.IsAccessDenied(err), Equals, true)
 	}
+}
+
+func (s *WebSuite) TestPasswordChange(c *C) {
+	pack := s.authPack(c)
+	fakeClock := clockwork.NewFakeClock()
+	s.authServer.SetClock(fakeClock)
+
+	validToken, err := totp.GenerateCode(pack.otpSecret, fakeClock.Now())
+	c.Assert(err, IsNil)
+
+	req := changePasswordReq{
+		OldPassword:       []byte("abc123"),
+		NewPassword:       []byte("abc1234"),
+		SecondFactorToken: validToken,
+	}
+
+	_, err = pack.clt.PutJSON(pack.clt.Endpoint("webapi", "users", "password"), req)
+	c.Assert(err, IsNil)
 }
 
 func (s *WebSuite) TestWebSessionsRenew(c *C) {
@@ -854,6 +886,16 @@ func (s *WebSuite) TestNewTerminalHandler(c *C) {
 	c.Assert(handler.hostPort, Equals, 8080)
 
 	handler, err = s.makeTerminalHandler("root", "nodename", []services.ServerV2{v2node})
+	c.Assert(err, IsNil)
+	c.Assert(handler.hostName, Equals, "nodehostname")
+	c.Assert(handler.hostPort, Equals, 0)
+
+	handler, err = s.makeTerminalHandler("root", "nodehostname", []services.ServerV2{v2node})
+	c.Assert(err, IsNil)
+	c.Assert(handler.hostName, Equals, "nodehostname")
+	c.Assert(handler.hostPort, Equals, 0)
+
+	handler, err = s.makeTerminalHandler("root", "NODEhostname", []services.ServerV2{v2node})
 	c.Assert(err, IsNil)
 	c.Assert(handler.hostName, Equals, "nodehostname")
 	c.Assert(handler.hostPort, Equals, 0)

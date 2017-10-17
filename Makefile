@@ -10,7 +10,7 @@
 # Naming convention:
 #	for stable releases we use "1.0.0" format
 #   for pre-releases, we use   "1.0.0-beta.2" format
-VERSION=2.3.1
+VERSION=2.3.5
 
 # These are standard autotools variables, don't change them please
 BUILDDIR ?= build
@@ -31,6 +31,7 @@ LIBS = $(shell find lib -type f -name '*.go') *.go
 TCTLSRC = $(shell find tool/tctl -type f -name '*.go')
 TELEPORTSRC = $(shell find tool/teleport -type f -name '*.go')
 TSHSRC = $(shell find tool/tsh -type f -name '*.go')
+TELEPORTVENDOR = $(shell find vendor -type f -name '*.go')
 
 #
 # 'make all' builds all 3 executables and plaaces them in a current directory
@@ -44,13 +45,13 @@ all: $(VERSRC)
 	go install $(BUILDFLAGS) ./lib/...
 	$(MAKE) -s -j 4 $(BINARIES)
 
-$(BUILDDIR)/tctl: $(LIBS) $(TCTLSRC)
+$(BUILDDIR)/tctl: $(LIBS) $(TELEPORTSRC) $(TELEPORTVENDOR)
 	go build -o $(BUILDDIR)/tctl -i $(BUILDFLAGS) ./tool/tctl
 
-$(BUILDDIR)/teleport: $(LIBS) $(TELEPORTSRC)
+$(BUILDDIR)/teleport: $(LIBS) $(TELEPORTSRC) $(TELEPORTVENDOR)
 	go build -o $(BUILDDIR)/teleport -i $(BUILDFLAGS) ./tool/teleport
 
-$(BUILDDIR)/tsh: $(LIBS) $(TSHSRC)
+$(BUILDDIR)/tsh: $(LIBS) $(TELEPORTSRC) $(TELEPORTVENDOR)
 	go build -o $(BUILDDIR)/tsh -i $(BUILDFLAGS) ./tool/tsh
 
 #

@@ -151,7 +151,7 @@ func Run(cmdlineArgs []string, distro teleport.DistroType, dontStart bool) (exec
 			utils.FatalError(err)
 		}
 		if !dontStart {
-			log.Info(conf.DebugDumpToYAML())
+			log.Debug(conf.DebugDumpToYAML())
 		}
 		if ccf.HTTPProfileEndpoint {
 			log.Warningf("http profile endpoint is deprecated, use gops instead")

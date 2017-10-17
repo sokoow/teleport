@@ -158,8 +158,8 @@
 [[projects]]
   name = "github.com/gravitational/trace"
   packages = ["."]
-  revision = "640274f75816ce3975e730e844290c14936f6288"
-  version = "1.0.0"
+  revision = "6b5a7fe88920c524ac56d22ed6f371ca25ec7e13"
+  version = "1.1.1"
 
 [[projects]]
   branch = "master"
@@ -398,6 +398,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "089cae53cecca9e069895ce59be5a5ce02fa411ba9e1a25253a0f5a8c4ab88e6"
+  inputs-digest = "be912e4e3985dd723427003de7f85d5dd6a671b5b4eb5ace449fa209c84e0500"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -85,6 +85,7 @@ func NewAPIServer(config *APIConfig) http.Handler {
 
 	// Passwords and sessions
 	srv.POST("/:version/users", srv.withAuth(srv.upsertUser))
+	srv.PUT("/:version/users/:user/web/password", srv.withAuth(srv.changePassword))
 	srv.POST("/:version/users/:user/web/password", srv.withAuth(srv.upsertPassword))
 	srv.POST("/:version/users/:user/web/password/check", srv.withAuth(srv.checkPassword))
 	srv.POST("/:version/users/:user/web/signin", srv.withAuth(srv.signIn))
@@ -103,6 +104,12 @@ func NewAPIServer(config *APIConfig) http.Handler {
 	srv.GET("/:version/authservers", srv.withAuth(srv.getAuthServers))
 	srv.POST("/:version/proxies", srv.withAuth(srv.upsertProxy))
 	srv.GET("/:version/proxies", srv.withAuth(srv.getProxies))
+	srv.POST("/:version/tunnelconnections", srv.withAuth(srv.upsertTunnelConnection))
+	srv.GET("/:version/tunnelconnections/:cluster", srv.withAuth(srv.getTunnelConnections))
+	srv.GET("/:version/tunnelconnections", srv.withAuth(srv.getAllTunnelConnections))
+	srv.DELETE("/:version/tunnelconnections/:cluster/:conn", srv.withAuth(srv.deleteTunnelConnection))
+	srv.DELETE("/:version/tunnelconnections/:cluster", srv.withAuth(srv.deleteTunnelConnections))
+	srv.DELETE("/:version/tunnelconnections", srv.withAuth(srv.deleteAllTunnelConnections))
 
 	// Reverse tunnels
 	srv.POST("/:version/reversetunnels", srv.withAuth(srv.upsertReverseTunnel))
@@ -578,6 +585,20 @@ func (s *APIServer) createWebSession(auth ClientI, w http.ResponseWriter, r *htt
 		return nil, trace.Wrap(err)
 	}
 	return rawMessage(services.GetWebSessionMarshaler().MarshalWebSession(sess, services.WithVersion(version)))
+}
+
+func (s *APIServer) changePassword(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	var req services.ChangePasswordReq
+	if err := httplib.ReadJSON(r, &req); err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	err := auth.ChangePassword(req)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return message(fmt.Sprintf("password has been changed for user %q", req.User)), nil
 }
 
 type upsertPasswordReq struct {
@@ -1773,6 +1794,87 @@ func (s *APIServer) setClusterAuthPreference(auth ClientI, w http.ResponseWriter
 	}
 
 	return message(fmt.Sprintf("cluster authenticaton preference set: %+v", cap)), nil
+}
+
+type upsertTunnelConnectionRawReq struct {
+	TunnelConnection json.RawMessage `json:"tunnel_connection"`
+}
+
+// upsertTunnelConnection updates or inserts tunnel connection
+func (s *APIServer) upsertTunnelConnection(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	var req upsertTunnelConnectionRawReq
+	if err := httplib.ReadJSON(r, &req); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	conn, err := services.UnmarshalTunnelConnection(req.TunnelConnection)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if err := auth.UpsertTunnelConnection(conn); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return message("ok"), nil
+}
+
+// getTunnelConnections returns a list of tunnel connections from a cluster
+func (s *APIServer) getTunnelConnections(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	conns, err := auth.GetTunnelConnections(p.ByName("cluster"))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	items := make([]json.RawMessage, len(conns))
+	for i, conn := range conns {
+		data, err := services.MarshalTunnelConnection(conn, services.WithVersion(version))
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		items[i] = data
+	}
+	return items, nil
+}
+
+// getAllTunnelConnections returns a list of tunnel connections from a cluster
+func (s *APIServer) getAllTunnelConnections(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	conns, err := auth.GetAllTunnelConnections()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	items := make([]json.RawMessage, len(conns))
+	for i, conn := range conns {
+		data, err := services.MarshalTunnelConnection(conn, services.WithVersion(version))
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		items[i] = data
+	}
+	return items, nil
+}
+
+// deleteTunnelConnection deletes tunnel connection by name
+func (s *APIServer) deleteTunnelConnection(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	err := auth.DeleteTunnelConnection(p.ByName("cluster"), p.ByName("conn"))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return message("ok"), nil
+}
+
+// deleteTunnelConnections deletes all tunnel connections for cluster
+func (s *APIServer) deleteTunnelConnections(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	err := auth.DeleteTunnelConnections(p.ByName("cluster"))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return message("ok"), nil
+}
+
+// deleteAllTunnelConnections deletes all tunnel connections
+func (s *APIServer) deleteAllTunnelConnections(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	err := auth.DeleteAllTunnelConnections()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return message("ok"), nil
 }
 
 func message(msg string) map[string]interface{} {
