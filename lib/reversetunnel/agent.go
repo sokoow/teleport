@@ -436,8 +436,10 @@ func (a *Agent) proxyTransport(ch ssh.Channel, reqC <-chan *ssh.Request) {
 				log.Errorf("unable to create new forward server")
 			}
 
+			a.Debugf("remote.Dial(to=%v) using recording proxy", server)
 			conn, err = remoteServer.Dial(server)
 		} else {
+			a.Debugf("remote.Dial(to=%v) using standard proxy", server)
 			conn, err = net.Dial("tcp", server)
 		}
 	}
