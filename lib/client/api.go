@@ -125,6 +125,12 @@ type Config struct {
 	// against Teleport client and obtaining credentials from elsewhere.
 	SkipLocalAuth bool
 
+	// TODO(russjones): Documentation!
+	Agent agent.Agent
+
+	// TODO(russjones): Documentation!
+	ForwardAgent bool
+
 	// AuthMethods are used to login into the cluster. If specified, the client will
 	// use them in addition to certs stored in its local agent (from disk)
 	AuthMethods []ssh.AuthMethod

@@ -540,13 +540,13 @@ func (s *Server) handleAgentForward(ch ssh.Channel, req *ssh.Request, ctx *psrv.
 	//	return err
 	//}
 
-	// this is the real one to uncomment
-	err = agent.RequestAgentForwarding(s.remoteSession)
+	err = agent.ForwardToAgent(s.remoteClient, ctx.GetAgent())
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = agent.ForwardToAgent(s.remoteClient, ctx.GetAgent())
+	// this is the real one to uncomment
+	err = agent.RequestAgentForwarding(s.remoteSession)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -805,6 +805,7 @@ func (s *Server) checkPermissionToLogin(cert *ssh.Certificate, teleportUser, osU
 	// enumerate all known CAs and see if any of them signed the
 	// supplied certificate
 	log.Debugf("[HA SSH NODE] checkPermsissionToLogin(%v, %v)", teleportUser, osUser)
+	log.Debugf("[HA SSH NODE] ValidPrincipals: %v", cert.ValidPrincipals)
 	cas, err := s.authService.GetCertAuthorities(services.UserCA, false)
 	if err != nil {
 		return "", trace.Wrap(err)

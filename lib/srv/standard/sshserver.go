@@ -553,36 +553,93 @@ func (s *Server) checkPermissionToLogin(cert *ssh.Certificate, teleportUser, osU
 }
 
 // fetchRoleSet fretches role set for a given user
-func (s *Server) fetchRoleSet(teleportUser string, clusterName string) (services.RoleSet, error) {
-	localClusterName, err := s.authService.GetDomainName()
+//func (s *Server) fetchRoleSet(teleportUser string, clusterName string) (services.RoleSet, error) {
+func (s *Server) fetchRoleSet(ctx *psrv.ServerContext) (services.RoleSet, error) {
+	teleportUser := ctx.TeleportUser
+	clusterName := ctx.ClusterName
+	cert, err := ctx.GetCertificate()
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return nil, err
 	}
+
+	//localClusterName, err := s.client.GetDomainName()
+	//log.Errorf("localClusterName: %v %v", localClusterName, err)
+	//if err != nil {
+	//	return nil, trace.Wrap(err)
+	//}
+
+	//cas, err := s.client.GetCertAuthorities(services.UserCA, false)
+	//if err != nil {
+	//	return nil, trace.Wrap(err)
+	//}
+
+	//var ca services.CertAuthority
+	//for i := range cas {
+	//	if cas[i].GetClusterName() == clusterName {
+	//		ca = cas[i]
+	//		break
+	//	}
+	//}
+	//if ca == nil {
+	//	return nil, trace.NotFound("could not find certificate authority for cluster %v and user %v", clusterName, teleportUser)
+	//}
 
 	cas, err := s.authService.GetCertAuthorities(services.UserCA, false)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
 	var ca services.CertAuthority
 	for i := range cas {
-		if cas[i].GetClusterName() == clusterName {
-			ca = cas[i]
-			break
+		checkers, err := cas[i].Checkers()
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		for _, checker := range checkers {
+			if sshutils.KeysEqual(cert.SignatureKey, checker) {
+				ca = cas[i]
+				break
+			}
 		}
 	}
+	// the certificate was signed by unknown authority
 	if ca == nil {
-		return nil, trace.NotFound("could not find certificate authority for cluster %v and user %v", clusterName, teleportUser)
+		return nil, trace.AccessDenied(
+			"the certificate for user '%v' is signed by untrusted CA",
+			teleportUser)
 	}
 
+	//var roles services.RoleSet
+	//if localClusterName == clusterName {
+	//	users, err := s.client.GetUsers()
+	//	if err != nil {
+	//		return nil, trace.Wrap(err)
+	//	}
+	//	for _, u := range users {
+	//		if u.GetName() == teleportUser {
+	//			roles, err = services.FetchRoles(u.GetRoles(), s.client, u.GetTraits())
+	//			if err != nil {
+	//				return nil, trace.Wrap(err)
+	//			}
+	//		}
+	//	}
+	//} else {
+	//roles, err = services.FetchRoles(ca.GetRoles(), s.client, nil)
+	//if err != nil {
+	//	return nil, trace.Wrap(err)
+	//}
+	//}
+
+	// for local users, go and check their individual permissions
 	var roles services.RoleSet
-	if localClusterName == clusterName {
+	if clusterName == ca.GetClusterName() {
+		log.Errorf("here!")
 		users, err := s.authService.GetUsers()
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 		for _, u := range users {
 			if u.GetName() == teleportUser {
+				// pass along the traits so we get the substituted roles for this user
 				roles, err = services.FetchRoles(u.GetRoles(), s.authService, u.GetTraits())
 				if err != nil {
 					return nil, trace.Wrap(err)
@@ -590,12 +647,74 @@ func (s *Server) fetchRoleSet(teleportUser string, clusterName string) (services
 			}
 		}
 	} else {
-		roles, err = services.FetchRoles(ca.GetRoles(), s.authService, nil)
+		certRoles, err := s.extractRolesFromCert(cert)
+		if err != nil {
+			log.Errorf("failed to extract roles from cert: %v", err)
+			return nil, trace.AccessDenied("failed to parse certificate roles")
+		}
+		roleNames, err := ca.CombinedMapping().Map(certRoles)
+		if err != nil {
+			log.Errorf("failed to map roles %v", err)
+			return nil, trace.AccessDenied("failed to map roles")
+		}
+		// pass the principals on the certificate along as the login traits
+		// to the remote cluster.
+		traits := map[string][]string{
+			teleport.TraitLogins: cert.ValidPrincipals,
+		}
+		log.Errorf("role names: %v", roleNames)
+		log.Errorf("traits: %v", traits)
+		roles, err = services.FetchRoles(roleNames, s.authService, traits)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 	}
+
 	return roles, err
+
+	//localClusterName, err := s.authService.GetDomainName()
+	//if err != nil {
+	//	return nil, trace.Wrap(err)
+	//}
+
+	//cas, err := s.authService.GetCertAuthorities(services.UserCA, false)
+	//if err != nil {
+	//	return nil, trace.Wrap(err)
+	//}
+
+	//var ca services.CertAuthority
+	//for i := range cas {
+	//	if cas[i].GetClusterName() == clusterName {
+	//		ca = cas[i]
+	//		break
+	//	}
+	//}
+	//if ca == nil {
+	//	return nil, trace.NotFound("could not find certificate authority for cluster %v and user %v", clusterName, teleportUser)
+	//}
+
+	//var roles services.RoleSet
+	//if localClusterName == clusterName {
+	//	log.Errorf("*** fetchRoleSet: hey! wrong cluster checking local cluster!")
+	//	users, err := s.authService.GetUsers()
+	//	if err != nil {
+	//		return nil, trace.Wrap(err)
+	//	}
+	//	for _, u := range users {
+	//		if u.GetName() == teleportUser {
+	//			roles, err = services.FetchRoles(u.GetRoles(), s.authService, u.GetTraits())
+	//			if err != nil {
+	//				return nil, trace.Wrap(err)
+	//			}
+	//		}
+	//	}
+	//} else {
+	//	roles, err = services.FetchRoles(ca.GetRoles(), s.authService, nil)
+	//	if err != nil {
+	//		return nil, trace.Wrap(err)
+	//	}
+	//}
+	//return roles, err
 }
 
 // isAuthority is called during checking the client key, to see if the signing
@@ -713,6 +832,7 @@ func (s *Server) keyAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permiss
 	// only way to pass the cluster name. this is used to determine if you are
 	// in the local to remote cluster.
 	permissions.Extensions[utils.CertTeleportClusterName] = domainName
+	permissions.Extensions["cert"] = string(ssh.MarshalAuthorizedKey(cert))
 
 	if s.proxyMode {
 		return permissions, nil
@@ -953,16 +1073,27 @@ func (s *Server) dispatch(ch ssh.Channel, req *ssh.Request, ctx *psrv.ServerCont
 	}
 }
 
-// TODO(russjones): A listening socket is only required when not in recording proxy mode.
 func (s *Server) handleAgentForward(ch ssh.Channel, req *ssh.Request, ctx *psrv.ServerContext) error {
-	roles, err := s.fetchRoleSet(ctx.TeleportUser, ctx.ClusterName)
+	//roles, err := s.fetchRoleSet(ctx.TeleportUser, ctx.ClusterName)
+	roles, err := s.fetchRoleSet(ctx)
 	if err != nil {
 		return trace.Wrap(err)
 	}
+
 	if err := roles.CheckAgentForward(ctx.Login); err != nil {
-		log.Warningf("[SSH:node] denied forward agent %v", err)
+		log.Warningf("[SSH:node] denied forward agent: %v", err)
 		return trace.Wrap(err)
 	}
+
+	authChan, _, err := ctx.Conn.OpenChannel("auth-agent@openssh.com", nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	// TODO(russjones): A listening socket is only required when not in recording proxy mode.
+	clientAgent := agent.NewClient(authChan)
+	ctx.SetAgent(clientAgent, authChan)
+
 	systemUser, err := user.Lookup(ctx.Login)
 	if err != nil {
 		return trace.ConvertSystemError(err)
@@ -975,13 +1106,6 @@ func (s *Server) handleAgentForward(ch ssh.Channel, req *ssh.Request, ctx *psrv.
 	if err != nil {
 		return trace.Wrap(err)
 	}
-
-	authChan, _, err := ctx.Conn.OpenChannel("auth-agent@openssh.com", nil)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	clientAgent := agent.NewClient(authChan)
-	ctx.SetAgent(clientAgent, authChan)
 
 	pid := os.Getpid()
 	socketDir, err := ioutil.TempDir(os.TempDir(), "teleport-")
