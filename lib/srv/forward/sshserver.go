@@ -543,13 +543,12 @@ func (s *Server) handleAgentForward(ch ssh.Channel, req *ssh.Request, ctx *psrv.
 
 	err = agent.ForwardToAgent(s.remoteClient, ctx.GetAgent())
 	if err != nil {
-		return trace.Wrap(err)
+		log.Infof("unable to forward requests to agent: %v", err)
 	}
 
-	// this is the real one to uncomment
 	err = agent.RequestAgentForwarding(s.remoteSession)
 	if err != nil {
-		return trace.Wrap(err)
+		log.Infof("unable to request agent forwarding: %v", err)
 	}
 
 	//log.Debugf("[SSH:forward] Overwriting agent with agent passed in by client")

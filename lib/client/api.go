@@ -377,7 +377,7 @@ func NewClient(c *Config) (tc *TeleportClient, err error) {
 		// if we were passed in a agent in the configuration and skip local auth, use
 		// the passed in agent. the web ui does this as it fetches the agent from
 		// the auth server and wants to use that one.
-		if c.Agent {
+		if c.Agent != nil {
 			tc.localAgent = &LocalKeyAgent{Agent: c.Agent}
 		}
 	} else {

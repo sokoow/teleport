@@ -15,7 +15,8 @@ import (
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/sshutils"
 	"github.com/gravitational/trace"
-	//log "github.com/sirupsen/logrus"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var _ = os.SEEK_CUR
@@ -103,6 +104,8 @@ func RemoteSession(addr string, systemLogin string, userAuthAgent agent.Agent, a
 		Timeout:         defaults.DefaultDialTimeout,
 	}
 
+	log.Debugf("[REMOTE] attempting to establish remote session with: %v", addr)
+
 	client, err := ssh.Dial("tcp", addr, clientConfig)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
@@ -112,6 +115,8 @@ func RemoteSession(addr string, systemLogin string, userAuthAgent agent.Agent, a
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
+
+	log.Debugf("[REMOTE] session established with %v", addr)
 
 	return client, session, nil
 }
