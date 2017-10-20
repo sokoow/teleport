@@ -74,6 +74,10 @@ type CLIConf struct {
 	RecursiveCopy bool
 	// -L flag for ssh. Local port forwarding like 'ssh -L 80:remote.host:80 -L 443:remote.host:443'
 	LocalForwardPorts []string
+	// TODO(russjones): Documentation!
+	ForwardAgentToProxy bool
+	// TODO(russjones): Documentation!
+	ForwardAgentToNode bool
 	// --local flag for ssh
 	LocalExec bool
 	// SiteName specifies remote site go login to
@@ -167,6 +171,8 @@ func Run(args []string, underTest bool) {
 	ssh.Arg("[user@]host", "Remote hostname and the login to use").Required().StringVar(&cf.UserHost)
 	ssh.Arg("command", "Command to execute on a remote host").StringsVar(&cf.RemoteCommand)
 	ssh.Flag("port", "SSH port on a remote host").Short('p').Int16Var(&cf.NodePort)
+	ssh.Flag("forward-agent-to-proxy", "Forward agent to proxy").Hidden().Short('Z').BoolVar(&cf.ForwardAgentToProxy)
+	ssh.Flag("forward-agent-to-node", "Forward agent to node").Hidden().Short('A').BoolVar(&cf.ForwardAgentToNode)
 	ssh.Flag("forward", "Forward localhost connections to remote server").Short('L').StringsVar(&cf.LocalForwardPorts)
 	ssh.Flag("local", "Execute command on localhost after connecting to SSH node").Default("false").BoolVar(&cf.LocalExec)
 	ssh.Flag("tty", "Allocate TTY").Short('t').BoolVar(&cf.Interactive)
@@ -598,6 +604,11 @@ func makeClient(cf *CLIConf, useProfileLogin bool) (tc *client.TeleportClient, e
 
 	// copy the authentication connector over
 	c.AuthConnector = cf.AuthConnector
+
+	// copy over if tsh wants to use the recording proxy and if the agent should
+	// be forwarded to the destination node
+	c.UseRecordingProxy = cf.ForwardAgentToProxy
+	c.ForwardAgent = cf.ForwardAgentToNode
 
 	return client.NewClient(c)
 }

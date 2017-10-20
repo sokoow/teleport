@@ -58,6 +58,8 @@ type TerminalRequest struct {
 	Cluster string `json:"-"`
 	// InteractiveCommand is a command to execute
 	InteractiveCommand []string `json:"-"`
+	// TODO(russjones): Documentation!
+	IsRecordAtProxy bool `json:"-"`
 }
 
 // NodeProvider is a provider of nodes for namespace
@@ -178,24 +180,25 @@ func (t *TerminalHandler) Run(w http.ResponseWriter, r *http.Request) {
 		// create teleport client:
 		output := utils.NewWebSockWrapper(ws, utils.WebSocketTextMode)
 		clientConfig := &client.Config{
-			SkipLocalAuth:    true,
-			Agent:            agent,
-			ForwardAgent:     true,
-			AuthMethods:      []ssh.AuthMethod{auth},
-			DefaultPrincipal: principal,
-			HostLogin:        t.params.Login,
-			Username:         t.ctx.user,
-			Namespace:        t.params.Namespace,
-			Stdout:           output,
-			Stderr:           output,
-			Stdin:            ws,
-			SiteName:         t.params.Cluster,
-			ProxyHostPort:    t.params.ProxyHostPort,
-			Host:             t.hostName,
-			HostPort:         t.hostPort,
-			Env:              map[string]string{sshutils.SessionEnvVar: string(t.params.SessionID)},
-			HostKeyCallback:  func(string, net.Addr, ssh.PublicKey) error { return nil },
-			ClientAddr:       r.RemoteAddr,
+			SkipLocalAuth:     true,
+			Agent:             agent,
+			UseRecordingProxy: t.params.IsRecordAtProxy,
+			ForwardAgent:      true,
+			AuthMethods:       []ssh.AuthMethod{auth},
+			DefaultPrincipal:  principal,
+			HostLogin:         t.params.Login,
+			Username:          t.ctx.user,
+			Namespace:         t.params.Namespace,
+			Stdout:            output,
+			Stderr:            output,
+			Stdin:             ws,
+			SiteName:          t.params.Cluster,
+			ProxyHostPort:     t.params.ProxyHostPort,
+			Host:              t.hostName,
+			HostPort:          t.hostPort,
+			Env:               map[string]string{sshutils.SessionEnvVar: string(t.params.SessionID)},
+			HostKeyCallback:   func(string, net.Addr, ssh.PublicKey) error { return nil },
+			ClientAddr:        r.RemoteAddr,
 		}
 		if len(t.params.InteractiveCommand) > 0 {
 			clientConfig.Interactive = true

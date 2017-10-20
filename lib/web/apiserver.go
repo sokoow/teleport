@@ -1186,6 +1186,12 @@ func (h *Handler) siteNodeConnect(
 	req.ProxyHostPort = h.ProxyHostPort()
 	req.Cluster = site.GetName()
 
+	clusterConfig, err := h.cfg.ProxyClient.GetClusterConfig()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	req.IsRecordAtProxy = clusterConfig.IsRecordAtProxy()
+
 	clt, err := ctx.GetUserClient(site)
 	if err != nil {
 		return nil, trace.Wrap(err)

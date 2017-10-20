@@ -126,6 +126,9 @@ type Config struct {
 	SkipLocalAuth bool
 
 	// TODO(russjones): Documentation!
+	UseRecordingProxy bool
+
+	// TODO(russjones): Documentation!
 	Agent agent.Agent
 
 	// TODO(russjones): Documentation!

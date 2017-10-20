@@ -119,10 +119,23 @@ func ParseExecRequest(req *ssh.Request, ctx *ServerContext) (Exec, error) {
 	//	Ctx:     ctx,
 	//	CmdName: e.Command,
 	//}
-	ctx.Exec = &remoteExec{
-		ctx:     ctx,
-		session: ctx.RemoteSession,
-		cmdName: e.Command,
+
+	clusterConfig, err := ctx.srv.GetAuthService().GetClusterConfig()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	if clusterConfig.IsRecordAtProxy() {
+		ctx.Exec = &remoteExec{
+			ctx:     ctx,
+			session: ctx.RemoteSession,
+			cmdName: e.Command,
+		}
+		return ctx.Exec, nil
+	}
+	ctx.Exec = &ExecResponse{
+		Ctx:     ctx,
+		CmdName: e.Command,
 	}
 	return ctx.Exec, nil
 }

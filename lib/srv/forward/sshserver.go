@@ -642,7 +642,12 @@ func (s *Server) handleEnv(ch ssh.Channel, req *ssh.Request, ctx *psrv.ServerCon
 		ctx.Error(err)
 		return trace.Wrap(err, "failed to parse env request")
 	}
-	ctx.SetEnv(e.Name, e.Value)
+
+	err := s.remoteSession.Setenv(e.Name, e.Value)
+	if err != nil {
+		log.Debugf("Unable to set environment variable: %v: %v", e.Name, e.Value)
+	}
+
 	return nil
 }
 

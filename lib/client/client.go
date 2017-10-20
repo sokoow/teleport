@@ -251,14 +251,18 @@ func (proxy *ProxyClient) ConnectToNode(ctx context.Context, nodeAddress string,
 		}
 	}
 
-	// TODO(russjones): If in proxy mode, forward agent here always.
-	err = agent.ForwardToAgent(proxy.Client, proxy.teleportClient.localAgent.Agent)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	err = agent.RequestAgentForwarding(proxySession)
-	if err != nil {
-		return nil, trace.Wrap(err)
+	// if we are using the recording proxy, we have to forward our agent to the
+	// proxy right away so it can usage the agent to make a connection to the
+	// target node.
+	if proxy.teleportClient.UseRecordingProxy {
+		err = agent.ForwardToAgent(proxy.Client, proxy.teleportClient.localAgent.Agent)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		err = agent.RequestAgentForwarding(proxySession)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	}
 
 	err = proxySession.RequestSubsystem("proxy:" + nodeAddress)
@@ -296,9 +300,6 @@ func (proxy *ProxyClient) ConnectToNode(ctx context.Context, nodeAddress string,
 	}
 
 	client := ssh.NewClient(conn, chans, reqs)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
 
 	if proxy.teleportClient.Agent != nil && proxy.teleportClient.ForwardAgent {
 		session, err := client.NewSession()
