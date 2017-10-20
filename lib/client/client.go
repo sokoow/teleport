@@ -252,7 +252,7 @@ func (proxy *ProxyClient) ConnectToNode(ctx context.Context, nodeAddress string,
 	}
 
 	// TODO(russjones): If in proxy mode, forward agent here always.
-	err = agent.ForwardToAgent(proxy.Client, proxy.teleportClient.Agent)
+	err = agent.ForwardToAgent(proxy.Client, proxy.teleportClient.localAgent.Agent)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -305,7 +305,7 @@ func (proxy *ProxyClient) ConnectToNode(ctx context.Context, nodeAddress string,
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		err = agent.ForwardToAgent(client, proxy.teleportClient.Agent)
+		err = agent.ForwardToAgent(client, proxy.teleportClient.localAgent.Agent)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}

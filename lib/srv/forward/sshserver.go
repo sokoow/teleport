@@ -421,6 +421,7 @@ func (s *Server) handleSessionRequests(sconn *ssh.ServerConn, ch ssh.Channel, in
 	ctx := psrv.NewServerContext(s, sconn)
 	ctx.RemoteSession = s.remoteSession
 	log.Errorf("ctx.RemoteSession: %v", ctx.RemoteSession)
+
 	// if the proxycommand is where we are forwarding the agent, then we need to
 	// keep that in mind (we don't need to wait for the agent to be ready, it's
 	// already ready)
