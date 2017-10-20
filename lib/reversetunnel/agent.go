@@ -422,8 +422,7 @@ func (a *Agent) proxyTransport(ch ssh.Channel, reqC <-chan *ssh.Request) {
 		// if we are recording at the proxy, return a connection to a in-memory
 		// server that can forward requests to a remote ssh server (can be teleport
 		// or openssh)
-		if clusterConfig.GetSessionRecording() == services.RecordAtProxy {
-			log.Errorf("tryingt o dial!")
+		if clusterConfig.IsRecordAtProxy() {
 			hostCertificate, err := getCertificate(server, a.Client)
 			if err != nil {
 				// TODO(russjones): Handle this better.

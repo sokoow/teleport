@@ -123,7 +123,7 @@ func (s *localSite) Dial(from net.Addr, to net.Addr) (net.Conn, error) {
 	// if we are recording at the proxy, return a connection to a in-memory
 	// server that can forward requests to a remote ssh server (can be teleport
 	// or openssh)
-	if clusterConfig.GetSessionRecording() == services.RecordAtProxy {
+	if clusterConfig.IsRecordAtProxy() {
 		s.log.Debugf("Dial(from=%v, to=%v) using recording proxy", from, to)
 		hostCertificate, err := getCertificate(to.String(), s.client)
 		if err != nil {
