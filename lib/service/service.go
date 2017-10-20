@@ -305,7 +305,7 @@ func (process *TeleportProcess) initAuthService(authority auth.Authority) error 
 	// create the audit log, which will be consuming (and recording) all events
 	// and record sessions
 	var auditLog events.IAuditLog
-	if cfg.Auth.NoAudit {
+	if cfg.Auth.SessionRecording.GetSessionRecording() == services.RecordOff {
 		auditLog = &events.DiscardAuditLog{}
 		log.Warn("the audit and session recording are turned off")
 	} else {

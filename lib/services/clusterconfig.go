@@ -86,8 +86,8 @@ const (
 	// RecordAtProxy enabled the recording proxy which intercepts and records all sessions.
 	RecordAtProxy RecordingType = "proxy"
 
-	// InsecureDisableRecording is used to disable session recording completely.
-	InsecureDisableRecording RecordingType = "off"
+	// RecordOff is used to disable session recording completely.
+	RecordOff RecordingType = "off"
 )
 
 // ClusterConfigSpecV2 is the actual data we care about for ClusterConfig.
