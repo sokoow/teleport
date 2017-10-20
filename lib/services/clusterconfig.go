@@ -38,6 +38,9 @@ type ClusterConfig interface {
 	GetSessionRecording() RecordingType
 	// SetSessionRecording sets where the session is recorded.
 	SetSessionRecording(RecordingType)
+	// IsRecordAtProxy is a convenience function which returns true if sessions
+	// will be recorded at the proxy.
+	IsRecordAtProxy() bool
 
 	// CheckAndSetDefaults checks and set default values for missing fields.
 	CheckAndSetDefaults() error
@@ -134,6 +137,15 @@ func (c *ClusterConfigV2) GetSessionRecording() RecordingType {
 // SetClusterConfig sets the name of the cluster.
 func (c *ClusterConfigV2) SetSessionRecording(s RecordingType) {
 	c.Spec.SessionRecording = s
+}
+
+// IsRecordAtProxy is a convenience function which returns true if sessions
+// will be recorded at the proxy.
+func (c *ClusterConfigV2) IsRecordAtProxy() bool {
+	if c.Spec.SessionRecording == RecordAtProxy {
+		return true
+	}
+	return false
 }
 
 // CheckAndSetDefaults checks validity of all parameters and sets defaults.
