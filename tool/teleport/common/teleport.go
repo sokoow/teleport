@@ -173,7 +173,7 @@ func Run(cmdlineArgs []string, dontStart bool) (executedCommand string, conf *se
 			}()
 		}
 		if !dontStart {
-			err = OnStart(conf)
+			err = OnStart(conf, nil)
 		}
 	case scpc.FullCommand():
 		err = onSCP(&scpCommand)
@@ -192,11 +192,12 @@ func Run(cmdlineArgs []string, dontStart bool) (executedCommand string, conf *se
 }
 
 // OnStart is the handler for "start" CLI command
-func OnStart(config *service.Config) error {
-	srv, err := service.NewTeleport(config)
+func OnStart(config *service.Config, extraOptions *service.ExtraTeleportOptions) error {
+	srv, err := service.NewTeleport(config, extraOptions)
 	if err != nil {
 		return trace.Wrap(err, "initializing teleport")
 	}
+
 	if err := srv.Start(); err != nil {
 		return trace.Wrap(err, "starting teleport")
 	}
@@ -210,8 +211,8 @@ func OnStart(config *service.Config) error {
 		fmt.Fprintf(f, "%v", os.Getpid())
 		defer f.Close()
 	}
-	srv.Wait()
-	return nil
+
+	return trace.Wrap(srv.Wait())
 }
 
 // onStatus is the handler for "status" CLI command

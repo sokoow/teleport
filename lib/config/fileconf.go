@@ -44,8 +44,8 @@ import (
 
 var (
 	// all possible valid YAML config keys
-	// true  = non-scalar
-	// false = scalar
+	// true  = has sub-keys
+	// false = does not have sub-keys (a leaf)
 	validKeys = map[string]bool{
 		"namespace":          true,
 		"cluster_name":       true,
@@ -128,6 +128,7 @@ var (
 		"kex_algos":          false,
 		"mac_algos":          false,
 		"connector_name":     false,
+		"license_file":       false,
 	}
 )
 
@@ -450,8 +451,7 @@ func (s *Service) Disabled() bool {
 type Auth struct {
 	Service `yaml:",inline"`
 
-	// DomainName is the name of the CA who manages this cluster
-	//DomainName string `yaml:"cluster_name,omitempty"`
+	// ClusterName is the name of the CA who manages this cluster
 	ClusterName ClusterName `yaml:"cluster_name,omitempty"`
 
 	// TrustedClustersFile is a file path to a file containing public CA keys
@@ -491,6 +491,10 @@ type Auth struct {
 	// it here overrides defaults.
 	// TODO: THIS SETTING IS DEPRECATED
 	DynamicConfig *bool `yaml:"dynamic_config,omitempty"`
+
+	// LicenseFile is a path to the license file. The path can be either absolute or
+	// relavive to the global data dir
+	LicenseFile string `yaml:"license_file,omitempty"`
 }
 
 // TrustedCluster struct holds configuration values under "trusted_clusters" key

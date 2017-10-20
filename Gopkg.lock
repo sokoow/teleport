@@ -53,6 +53,18 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/cloudflare/cfssl"
+  packages = ["auth","certdb","config","crypto/pkcs7","csr","errors","helpers","helpers/derhelpers","info","initca","log","ocsp/config","signer","signer/local"]
+  revision = "7d88da830aad9d533c2fb8532da23f6a75331b52"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cloudfoundry/gosigar"
+  packages = ["."]
+  revision = "14c0a766933d517675369dae6f551f5c1a10f0d8"
+
+[[projects]]
   name = "github.com/codahale/hdrhistogram"
   packages = ["."]
   revision = "954f16e8b9ef0e5d5189456aa4c1202758e04f17"
@@ -105,6 +117,12 @@
   version = "v1.11.0"
 
 [[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = ["proto"]
+  revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
+  version = "v0.5"
+
+[[projects]]
   branch = "master"
   name = "github.com/gokyle/hotp"
   packages = ["."]
@@ -117,8 +135,14 @@
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = ["proto","protoc-gen-go/descriptor","ptypes/any","ptypes/empty"]
+  packages = ["jsonpb","proto","protoc-gen-go/descriptor","ptypes","ptypes/any","ptypes/duration","ptypes/empty","ptypes/timestamp"]
   revision = "8ee79997227bf9b34611aee7946ae64735e6fd93"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/google/certificate-transparency-go"
+  packages = [".","asn1","client","client/configpb","jsonclient","tls","x509","x509/pkix"]
+  revision = "8d47cb132abe6e2b81230d92080768f9fb0852c8"
 
 [[projects]]
   name = "github.com/google/gops"
@@ -144,10 +168,16 @@
   revision = "52bc17adf63c0807b5e5b5d91350703630f621c7"
 
 [[projects]]
+  branch = "roman/pro"
+  name = "github.com/gravitational/license"
+  packages = [".","authority","constants"]
+  revision = "36e7a32b62c171bf03b7eaa306ae9d097d97143b"
+
+[[projects]]
   branch = "roman/reporting"
   name = "github.com/gravitational/reporting"
   packages = ["."]
-  revision = "ee37a90e0c9f95b91d463a977633d9fc052ad8da"
+  revision = "267d244ece4cf6b7fcf45bbf8af0a99981d0cbb8"
 
 [[projects]]
   branch = "master"
@@ -169,7 +199,7 @@
 
 [[projects]]
   name = "github.com/grpc-ecosystem/grpc-gateway"
-  packages = ["third_party/googleapis/google/api"]
+  packages = ["runtime","runtime/internal","third_party/googleapis/google/api","utilities"]
   revision = "a8f25bd1ab549f8b87afd48aa9181221e9d439bb"
   version = "v1.1.0"
 
@@ -350,12 +380,12 @@
 
 [[projects]]
   name = "golang.org/x/crypto"
-  packages = ["bcrypt","blowfish","curve25519","ed25519","ed25519/internal/edwards25519","nacl/secretbox","poly1305","salsa20/salsa","ssh","ssh/agent","ssh/terminal"]
+  packages = ["bcrypt","blowfish","curve25519","ed25519","ed25519/internal/edwards25519","nacl/secretbox","ocsp","pkcs12","pkcs12/internal/rc2","poly1305","salsa20/salsa","ssh","ssh/agent","ssh/terminal"]
   revision = "453249f01cfeb54c3d549ddb75ff152ca243f9d8"
 
 [[projects]]
   name = "golang.org/x/net"
-  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace","websocket"]
+  packages = ["context","context/ctxhttp","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace","websocket"]
   revision = "48359f4f600b3a2d5cf657458e3f940021631a56"
 
 [[projects]]
@@ -398,6 +428,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "be912e4e3985dd723427003de7f85d5dd6a671b5b4eb5ace449fa209c84e0500"
+  inputs-digest = "4d0c4fb304b50fc9bd6867f84978f82c31b6b24ca49b5f7e13bdba4b1673a40b"
   solver-name = "gps-cdcl"
   solver-version = 1

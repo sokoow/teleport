@@ -27,7 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/reversetunnel"
 	"github.com/gravitational/teleport/lib/services"
@@ -302,13 +301,6 @@ func (t *proxySubsys) proxyToHost(
 	// this custom SSH handshake allows SSH proxy to relay the client's IP
 	// address to the SSH server
 	doHandshake(remoteAddr, ch, conn)
-
-	utils.RecordEvent(t.srv.eventRecorder, reporting.Event{
-		Type: reporting.EventTypeNodeAccessed,
-		NodeAccessed: &reporting.NodeAccessed{
-			NodeHash: strings.Split(serverAddr, ":")[0],
-		},
-	})
 
 	go func() {
 		var err error

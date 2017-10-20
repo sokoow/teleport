@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gravitational/reporting"
@@ -9,7 +10,8 @@ import (
 
 func RecordEvent(recorder reporting.Client, event reporting.Event) {
 	if recorder == nil {
-		log.Debug("event recorder not initialized")
+		log.Debugf("event recorder not initialized, discarding event: %v", event)
+		fmt.Println("discarding event:", event)
 		return
 	}
 
@@ -18,4 +20,5 @@ func RecordEvent(recorder reporting.Client, event reporting.Event) {
 	}
 
 	recorder.Record(event)
+	fmt.Println("recorded event:", event)
 }

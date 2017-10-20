@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -398,6 +399,15 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 				"documentation for more details: " +
 				"http://gravitational.com/teleport/docs/admin-guide"
 			log.Warnf(warningMessage)
+		}
+	}
+	// read in and set the license file path
+	licenseFile := fc.Auth.LicenseFile
+	if licenseFile != "" {
+		if filepath.IsAbs(licenseFile) {
+			cfg.Auth.LicenseFile = licenseFile
+		} else {
+			cfg.Auth.LicenseFile = filepath.Join(cfg.DataDir, licenseFile)
 		}
 	}
 

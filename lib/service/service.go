@@ -19,7 +19,6 @@ limitations under the License.
 package service
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -31,7 +30,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/auth/native"
@@ -107,7 +105,11 @@ type TeleportProcess struct {
 	// identities of this process (credentials to auth sever, basically)
 	Identities map[teleport.Role]*auth.Identity
 
-	eventRecorder reporting.Client
+	extraOptions ExtraTeleportOptions
+}
+
+type ExtraTeleportOptions struct {
+	AuthServerOptions []auth.AuthServerOption
 }
 
 func (process *TeleportProcess) GetAuthServer() *auth.AuthServer {
@@ -188,7 +190,7 @@ func (process *TeleportProcess) connectToAuthService(role teleport.Role) (*Conne
 
 // NewTeleport takes the daemon configuration, instantiates all required services
 // and starts them under a supervisor, returning the supervisor object
-func NewTeleport(cfg *Config) (*TeleportProcess, error) {
+func NewTeleport(cfg *Config, extraOptions *ExtraTeleportOptions) (*TeleportProcess, error) {
 	// before we do anything reset the SIGINT handler back to the default
 	utils.ResetInterruptSignalHandler()
 
@@ -240,17 +242,14 @@ func NewTeleport(cfg *Config) (*TeleportProcess, error) {
 		}
 	}
 
-	eventRecorder, err := reporting.NewClient(context.TODO(), defaults.ControlPlaneAddr)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
 	process := &TeleportProcess{
-		Clock:         clockwork.NewRealClock(),
-		Supervisor:    NewSupervisor(),
-		Config:        cfg,
-		Identities:    make(map[teleport.Role]*auth.Identity),
-		eventRecorder: eventRecorder,
+		Clock:      clockwork.NewRealClock(),
+		Supervisor: NewSupervisor(),
+		Config:     cfg,
+		Identities: make(map[teleport.Role]*auth.Identity),
+	}
+	if extraOptions != nil {
+		process.extraOptions = *extraOptions
 	}
 
 	serviceStarted := false
@@ -345,7 +344,7 @@ func (process *TeleportProcess) initAuthService(authority auth.Authority) error 
 		Roles:           cfg.Auth.Roles,
 		AuthPreference:  cfg.Auth.Preference,
 		OIDCConnectors:  cfg.OIDCConnectors,
-	}, auth.SetEventRecorder(process.eventRecorder))
+	}, process.extraOptions.AuthServerOptions...)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -717,13 +716,7 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		return trace.Wrap(err)
 	}
 
-	SSHProxy, err := srv.New(cfg.Proxy.SSHAddr,
-		cfg.Hostname,
-		[]ssh.Signer{conn.Identity.KeySigner},
-		authClient,
-		cfg.DataDir,
-		nil,
-		cfg.Proxy.PublicAddr,
+	srvOptions := []srv.ServerOption{
 		srv.SetLimiter(proxyLimiter),
 		srv.SetProxyMode(tsrv),
 		srv.SetSessionServer(conn.Client),
@@ -731,8 +724,16 @@ func (process *TeleportProcess) initProxyEndpoint(conn *Connector) error {
 		srv.SetCiphers(cfg.Ciphers),
 		srv.SetKEXAlgorithms(cfg.KEXAlgorithms),
 		srv.SetMACAlgorithms(cfg.MACAlgorithms),
-		srv.SetEventRecorder(process.eventRecorder),
-	)
+	}
+
+	SSHProxy, err := srv.New(cfg.Proxy.SSHAddr,
+		cfg.Hostname,
+		[]ssh.Signer{conn.Identity.KeySigner},
+		authClient,
+		cfg.DataDir,
+		nil,
+		cfg.Proxy.PublicAddr,
+		srvOptions...)
 	if err != nil {
 		return trace.Wrap(err)
 	}

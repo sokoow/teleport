@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gravitational/reporting"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/events"
@@ -1500,6 +1501,14 @@ func (s *APIServer) emitAuditEvent(auth ClientI, w http.ResponseWriter, r *http.
 	}
 	if err := auth.EmitAuditEvent(req.Type, req.Fields); err != nil {
 		return nil, trace.Wrap(err)
+	}
+	if req.Type == events.SessionStartEvent {
+		utils.RecordEvent(s.AuthServer.eventRecorder, reporting.Event{
+			Type: reporting.EventTypeNodeAccessed,
+			NodeAccessed: &reporting.NodeAccessed{
+				NodeHash: req.Fields[events.SessionServerID].(string),
+			},
+		})
 	}
 	return message("ok"), nil
 }
